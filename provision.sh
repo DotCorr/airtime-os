@@ -38,7 +38,9 @@ grep -q '^ttyS0' /etc/inittab || echo 'ttyS0::respawn:/sbin/getty -L 115200 ttyS
 rc-update add udev-trigger sysinit
 rc-update add udev-settle sysinit
 
-# branded boot screen while services come up
+# branded boot screen while services come up (chmod before rc-update — it
+# refuses to register a non-executable service)
+chmod +x /etc/init.d/airtime-banner
 rc-update add airtime-banner boot
 
 # NM connection profiles must be root-only or NM ignores them

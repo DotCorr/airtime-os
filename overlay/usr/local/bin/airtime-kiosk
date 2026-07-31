@@ -36,11 +36,6 @@ if grep -qi hypervisor /proc/cpuinfo; then
 fi
 
 while true; do
-  if nm-online -q -t 8 2>/dev/null; then
-    url="$APP_URL"
-  else
-    url="$SETTINGS_URL"
-  fi
   # The first session after cold boot sometimes wedges its renderer before
   # parsing anything (races the still-settling system); a bounced session
   # reliably recovers. Watchdog: no page title after 4 min => bounce.
@@ -52,9 +47,10 @@ while true; do
       fi
     ) &
   fi
-  # Launch via the local bootstrap trampoline: it retries navigation until it
-  # sticks, surviving dropped loads while the browser settles (see boot.html).
-  boot="$SETTINGS_URL/boot.html#$url"
+  # Launch straight into the local bootstrap trampoline — no network probe
+  # gating startup. boot.html retries the app until reachable and falls back
+  # to the Wi-Fi settings page itself when the network never comes up.
+  boot="$SETTINGS_URL/boot.html#$APP_URL|$SETTINGS_URL"
   # wvkbd only if a touchscreen exists
   if grep -qi touch /proc/bus/input/devices 2>/dev/null; then
     cage -- sh -c "wvkbd-mobintl -L 220 --hidden & chromium $chromium_flags '$boot'" \

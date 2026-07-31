@@ -22,7 +22,13 @@ cp -a /os/overlay/. "$tmp"/
 chmod +x "$tmp"/usr/local/bin/airtime-kiosk "$tmp"/usr/local/bin/airtime-settingsd \
 	"$tmp"/etc/local.d/airtime.start \
 	"$tmp"/usr/local/share/airtime-settings/cgi-bin/networks \
-	"$tmp"/usr/local/share/airtime-settings/cgi-bin/connect
+	"$tmp"/usr/local/share/airtime-settings/cgi-bin/connect \
+	"$tmp"/etc/init.d/airtime-banner
+
+# silent boot: no motd/issue noise, parallel service startup
+: > "$tmp"/etc/motd
+: > "$tmp"/etc/issue
+printf 'rc_parallel="YES"\n' > "$tmp"/etc/rc.conf
 
 # live-boot provisioning: create the kiosk user + inittab entries at boot.
 # tty1 agetty respawns until the user exists, then autologin proceeds.
@@ -64,6 +70,7 @@ rc_add hostname boot
 rc_add bootmisc boot
 rc_add syslog boot
 
+rc_add airtime-banner boot
 rc_add dbus default
 rc_add networkmanager default
 rc_add seatd default

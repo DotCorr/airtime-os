@@ -1,16 +1,30 @@
 <!doctype html>
 <meta charset="utf-8">
 <title>Airtime</title>
-<body style="margin:0;background:#000;color:#555;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh">
-<div>Starting Airtime&hellip;</div>
+<body style="margin:0;background:#000;color:#fff;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;gap:14px">
+<div style="font-weight:700;font-size:1.3rem">Airtime</div>
+<div id="s" style="color:#666;font-size:0.9rem">Connecting&hellip;</div>
 <script>
-// Bootstrap trampoline: the kiosk opens this local page with the real target
-// in the hash. Early navigations can get dropped while the browser is still
-// settling (GPU fallback on accel-less hardware), so we retry until one sticks.
-var APP = decodeURIComponent(location.hash.slice(1)) || "https://airtime.dotcorr.com/tv";
+// Bootstrap trampoline: the kiosk opens this local page with "app|settings"
+// in the hash. Retries the app until it is reachable (early navigations can
+// also get dropped while the browser settles on accel-less hardware); if the
+// network never comes up, falls back to the Wi-Fi settings page.
+var parts = location.hash.slice(1).split("|");
+var APP = decodeURIComponent(parts[0] || "") || "https://airtime.dotcorr.com/tv";
+var SETTINGS = decodeURIComponent(parts[1] || "");
+var fails = 0;
 function go() {
-  fetch(APP, { mode: "no-cors" }).then(function () { location.replace(APP); }, function () {});
+  fetch(APP, { mode: "no-cors", cache: "no-store" }).then(
+    function () { location.replace(APP); },
+    function () {
+      fails++;
+      if (SETTINGS && fails >= 4) {
+        document.getElementById("s").textContent = "No network — opening Wi-Fi setup…";
+        location.replace(SETTINGS);
+      }
+    }
+  );
 }
-setInterval(go, 15000);
-setTimeout(go, 2000);
+setInterval(go, 5000);
+setTimeout(go, 1200);
 </script>

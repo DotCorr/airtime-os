@@ -6,6 +6,15 @@ set -eu
 echo airtimeos > /etc/hostname
 printf '127.0.0.1\tlocalhost airtimeos\n::1\t\tlocalhost airtimeos\n' > /etc/hosts
 
+# silent, instant boot: no bootloader wait, kernel+service chatter goes to the
+# serial port (debug channel) instead of the screen; no console cursor or banners
+sed -i -e 's/^TIMEOUT .*/TIMEOUT 1/' \
+       -e '/^ *APPEND /s/$/ quiet loglevel=1 vt.global_cursor_default=0 console=ttyS0,115200/' \
+  /boot/extlinux.conf 2>/dev/null || true
+: > /etc/motd
+: > /etc/issue
+sed -i 's/^#\?rc_parallel=.*/rc_parallel="YES"/' /etc/rc.conf
+
 # services
 rc-update add dbus default
 rc-update add networkmanager default
@@ -29,6 +38,9 @@ grep -q '^ttyS0' /etc/inittab || echo 'ttyS0::respawn:/sbin/getty -L 115200 ttyS
 rc-update add udev-trigger sysinit
 rc-update add udev-settle sysinit
 
+# branded boot screen while services come up
+rc-update add airtime-banner boot
+
 # NM connection profiles must be root-only or NM ignores them
 chmod 600 /etc/NetworkManager/system-connections/wired.nmconnection
 
@@ -39,4 +51,5 @@ PROFILE
 chown kiosk:kiosk /home/kiosk/.profile
 
 chmod +x /usr/local/bin/airtime-kiosk /usr/local/bin/airtime-settingsd /etc/local.d/airtime.start \
-  /usr/local/share/airtime-settings/cgi-bin/networks /usr/local/share/airtime-settings/cgi-bin/connect
+  /usr/local/share/airtime-settings/cgi-bin/networks /usr/local/share/airtime-settings/cgi-bin/connect \
+  /etc/init.d/airtime-banner

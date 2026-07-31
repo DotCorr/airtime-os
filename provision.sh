@@ -9,10 +9,11 @@ rc-update add seatd default
 rc-update add udev sysinit
 rc-update add local default
 
-# kiosk user
-adduser -D -G video kiosk || true
-addgroup kiosk input || true
-addgroup kiosk seat || true
+# kiosk user — create groups first, then the user, then memberships;
+# every step tolerant of "already exists" but never of a missing user.
+for g in video input seat; do addgroup "$g" 2>/dev/null || true; done
+adduser -D kiosk
+for g in video input seat; do addgroup kiosk "$g" || true; done
 
 # autologin on tty1 → kiosk session
 sed -i 's|^tty1.*|tty1::respawn:/sbin/agetty --autologin kiosk --noclear tty1 linux|' /etc/inittab

@@ -1,4 +1,3 @@
-linux-lts
 openrc
 networkmanager
 networkmanager-wifi

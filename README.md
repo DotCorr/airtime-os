@@ -50,6 +50,12 @@ Produces `dist/airtimeos-x86_64.img` — a raw disk image.
 ./test-qemu.sh              # boots the built image with virtio-gpu + network
 ```
 
+Inside a VM everything renders in software (no GPU passthrough), so expect a
+few minutes from boot to the pairing screen — especially on non-x86 hosts where
+the whole CPU is emulated. Real hardware with any GPU is far faster. A serial
+console is attached to the terminal; `root` logs in without a password for
+debugging.
+
 ## Flash to a real device
 
 ```sh

@@ -24,9 +24,11 @@ chromium_flags="--kiosk --no-first-run --noerrdialogs --disable-infobars \
   --enable-features=VaapiVideoDecoder --ozone-platform=wayland \
   --disable-pinch --overscroll-history-navigation=0"
 
-# VMs have no real GPU; Chromium's GPU process paints a blank window there.
-# CDP port stays open in VMs for headless debugging/screenshots.
+# VMs have no real GPU: force cage's pixman renderer (the GL-on-llvmpipe path
+# stalls frame presentation under emulation), run Chromium fully in software,
+# and keep the CDP port open for headless debugging/screenshots.
 if grep -qi hypervisor /proc/cpuinfo; then
+  export WLR_RENDERER=pixman
   chromium_flags="$chromium_flags --disable-gpu --remote-debugging-port=9222 --remote-allow-origins=*"
 fi
 
@@ -36,12 +38,15 @@ while true; do
   else
     url="$SETTINGS_URL"
   fi
+  # Launch via the local bootstrap trampoline: it retries navigation until it
+  # sticks, surviving dropped loads while the browser settles (see boot.html).
+  boot="$SETTINGS_URL/boot.html#$url"
   # wvkbd only if a touchscreen exists
   if grep -qi touch /proc/bus/input/devices 2>/dev/null; then
-    cage -- sh -c "wvkbd-mobintl -L 220 --hidden & chromium $chromium_flags '$url'" \
+    cage -- sh -c "wvkbd-mobintl -L 220 --hidden & chromium $chromium_flags '$boot'" \
       >>/tmp/kiosk.log 2>&1
   else
-    cage -- chromium $chromium_flags "$url" >>/tmp/kiosk.log 2>&1
+    cage -- chromium $chromium_flags "$boot" >>/tmp/kiosk.log 2>&1
   fi
   sleep 2 # crashed or exited — respawn
 done

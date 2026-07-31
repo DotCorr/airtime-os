@@ -1,0 +1,16 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Airtime</title>
+<body style="margin:0;background:#000;color:#555;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh">
+<div>Starting Airtime&hellip;</div>
+<script>
+// Bootstrap trampoline: the kiosk opens this local page with the real target
+// in the hash. Early navigations can get dropped while the browser is still
+// settling (GPU fallback on accel-less hardware), so we retry until one sticks.
+var APP = decodeURIComponent(location.hash.slice(1)) || "https://airtime.dotcorr.com/tv";
+function go() {
+  fetch(APP, { mode: "no-cors" }).then(function () { location.replace(APP); }, function () {});
+}
+setInterval(go, 15000);
+setTimeout(go, 2000);
+</script>

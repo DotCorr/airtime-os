@@ -12,7 +12,7 @@ rc-update add local default
 # kiosk user — create groups first, then the user, then memberships;
 # every step tolerant of "already exists" but never of a missing user.
 for g in video input seat; do addgroup "$g" 2>/dev/null || true; done
-adduser -D kiosk
+adduser -D -s /bin/sh kiosk
 for g in video input seat; do addgroup kiosk "$g" || true; done
 
 # autologin on tty1 → kiosk session

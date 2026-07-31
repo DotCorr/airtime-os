@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Airtime — connect this screen</title>
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  body { background: #000; color: #fff; font-family: Inter, sans-serif; min-height: 100vh;
+         display: flex; align-items: center; justify-content: center; padding: 4vw; }
+  .wrap { max-width: 640px; width: 100%; }
+  .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+  .dome { width: 26px; height: 26px; }
+  h1 { font-size: clamp(1.6rem, 4vw, 2.6rem); font-weight: 700; letter-spacing: -0.02em; margin-bottom: 10px; }
+  p.sub { color: rgba(255,255,255,0.6); margin-bottom: 28px; }
+  .net { display: flex; justify-content: space-between; align-items: center; padding: 16px 4px;
+         border-bottom: 1px solid rgba(255,255,255,0.12); cursor: pointer; font-size: 1.05rem; }
+  .net:hover { background: rgba(255,255,255,0.04); }
+  .sig { color: rgba(255,255,255,0.45); font-size: 0.85rem; }
+  #pw { display: none; margin-top: 22px; }
+  input { width: 100%; background: none; border: 2px solid rgba(255,255,255,0.4); color: #fff;
+          padding: 14px 16px; font-size: 1.1rem; outline: none; }
+  button { margin-top: 14px; width: 100%; background: #fff; color: #000; border: none;
+           padding: 15px; font-size: 1.05rem; font-weight: 700; cursor: pointer; }
+  .status { margin-top: 16px; color: #FB5334; min-height: 1.4em; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">
+      <svg class="dome" viewBox="0 0 256 256"><path fill="#FB5334" d="M32 112a96 96 0 0 1 192 0H32Z"/><path fill="#fff" d="M80 128h32v32h32v-32h32v48h-32v40h-32v-40H80v-48Z"/><path fill="#FB5334" d="M112 228h32v10h-32z"/></svg>
+      <strong style="font-size:1.2rem">Airtime</strong>
+    </div>
+    <h1>Connect this screen to the internet</h1>
+    <p class="sub">Pick your Wi-Fi. Once connected, this screen sets itself up — you'll just scan a QR code with your phone.</p>
+    <div id="nets">Scanning…</div>
+    <div id="pw">
+      <input id="psk" type="password" placeholder="Wi-Fi password" />
+      <button onclick="connect()">Connect</button>
+    </div>
+    <div class="status" id="status"></div>
+  </div>
+<script>
+let chosen = null;
+async function scan() {
+  try {
+    const nets = await (await fetch("/cgi-bin/networks")).json();
+    const el = document.getElementById("nets");
+    el.innerHTML = "";
+    nets.sort((a, b) => b.signal - a.signal).forEach((n) => {
+      const d = document.createElement("div");
+      d.className = "net";
+      d.innerHTML = `<span>${n.ssid}${n.security ? " 🔒" : ""}</span><span class="sig">${n.signal}%</span>`;
+      d.onclick = () => { chosen = n.ssid; document.getElementById("pw").style.display = "block";
+        document.getElementById("status").textContent = "Network: " + n.ssid; document.getElementById("psk").focus(); };
+      el.appendChild(d);
+    });
+    if (!nets.length) el.textContent = "No networks found — plug in ethernet or retry.";
+  } catch { document.getElementById("nets").textContent = "Scanning…"; }
+}
+async function connect() {
+  document.getElementById("status").textContent = "Connecting…";
+  const r = await (await fetch("/cgi-bin/connect", { method: "POST",
+    body: JSON.stringify({ ssid: chosen, psk: document.getElementById("psk").value }) })).json();
+  document.getElementById("status").textContent = r.ok
+    ? "Connected — starting Airtime…" : "Wrong password or connection failed — try again.";
+  if (r.ok) setTimeout(() => location.href = "https://airtime.dotcorr.com/tv", 2500);
+}
+scan(); setInterval(scan, 8000);
+</script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+#!/bin/sh
+# The kiosk session: Cage compositor running Chromium fullscreen, forever.
+# No network → local settings page first. Chromium dies → it respawns.
+set -u
+
+SETTINGS_URL="http://localhost:8800"
+APP_URL="$(cat /etc/airtime/screen.conf 2>/dev/null || echo 'https://airtime.dotcorr.com/tv')"
+
+# local settings daemon (Wi-Fi setup UI)
+pgrep -f airtime-settingsd >/dev/null || /usr/local/bin/airtime-settingsd &
+
+chromium_flags="--kiosk --no-first-run --noerrdialogs --disable-infobars \
+  --disable-session-crashed-bubble --autoplay-policy=no-user-gesture-required \
+  --enable-features=VaapiVideoDecoder --ozone-platform=wayland \
+  --disable-pinch --overscroll-history-navigation=0"
+
+while true; do
+  if nm-online -q -t 8 2>/dev/null; then
+    url="$APP_URL"
+  else
+    url="$SETTINGS_URL"
+  fi
+  # wvkbd only if a touchscreen exists
+  if grep -qi touch /proc/bus/input/devices 2>/dev/null; then
+    cage -- sh -c "wvkbd-mobintl -L 220 --hidden & chromium $chromium_flags '$url'"
+  else
+    cage -- chromium $chromium_flags "$url"
+  fi
+  sleep 2 # crashed or exited — respawn
+done

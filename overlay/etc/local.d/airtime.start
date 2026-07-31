@@ -1,0 +1,3 @@
+#!/bin/sh
+# consoleblank off — the panel must never blank while showing paid ads
+setterm -blank 0 -powersave off -powerdown 0 < /dev/tty1 > /dev/tty1 2>/dev/null || true

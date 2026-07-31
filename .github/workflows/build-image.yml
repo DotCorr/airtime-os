@@ -28,6 +28,7 @@ jobs:
           sudo alpine-make-vm-image \
             --image-format raw \
             --image-size 2G \
+            --kernel-flavor lts \
             --branch v3.20 \
             --packages "$(cat packages.txt)" \
             --fs-skel-dir overlay \

@@ -28,6 +28,7 @@ command -v alpine-make-vm-image >/dev/null 2>&1 || {
 alpine-make-vm-image \
   --image-format raw \
   --image-size 2G \
+  --kernel-flavor lts \
   --branch v$ALPINE_VERSION \
   --packages "$(cat packages.txt)" \
   --fs-skel-dir overlay \

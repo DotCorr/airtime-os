@@ -58,6 +58,7 @@ jobs:
           docker run --rm -v "$PWD":/os alpine:3.20 sh -ec '
             apk add -q alpine-sdk build-base apk-tools alpine-conf busybox fakeroot syslinux xorriso squashfs-tools sudo mtools dosfstools grub-efi git
             git clone --depth 1 -b 3.20-stable https://gitlab.alpinelinux.org/alpine/aports /aports
+            abuild-keygen -a -i -n
             cp /os/iso/mkimg.airtimeos.sh /os/iso/genapkovl-airtimeos.sh /aports/scripts/
             chmod +x /aports/scripts/mkimg.airtimeos.sh /aports/scripts/genapkovl-airtimeos.sh
             cd /aports/scripts

@@ -18,6 +18,16 @@ for g in video input seat; do addgroup kiosk "$g" || true; done
 # autologin on tty1 → kiosk session
 sed -i 's|^tty1.*|tty1::respawn:/sbin/agetty --autologin kiosk --noclear tty1 linux|' /etc/inittab
 
+# serial console (debugging in VMs / headless boards; no-op when absent)
+grep -q '^ttyS0' /etc/inittab || echo 'ttyS0::respawn:/sbin/getty -L 115200 ttyS0 vt100' >> /etc/inittab
+
+# udev coldplug so devices present before udev started still get events
+rc-update add udev-trigger sysinit
+rc-update add udev-settle sysinit
+
+# NM connection profiles must be root-only or NM ignores them
+chmod 600 /etc/NetworkManager/system-connections/wired.nmconnection
+
 # kiosk session autostarts from profile
 cat > /home/kiosk/.profile << 'PROFILE'
 [ "$(tty)" = "/dev/tty1" ] && exec /usr/local/bin/airtime-kiosk

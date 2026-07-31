@@ -1,0 +1,12 @@
+[connection]
+id=Wired
+uuid=8f6f5f34-40ce-4c96-b0e5-8a1b6cbb3f27
+type=ethernet
+autoconnect=true
+autoconnect-priority=100
+
+[ipv4]
+method=auto
+
+[ipv6]
+method=auto

@@ -8,6 +8,11 @@ export XDG_RUNTIME_DIR="/tmp/xdg-runtime-$(id -u)"
 mkdir -p "$XDG_RUNTIME_DIR"
 chmod 700 "$XDG_RUNTIME_DIR"
 
+# GPUs without 3D accel (VMs, some thin clients) fall back to software rendering;
+# wlroots refuses that without explicit opt-in. Hardware GL is still preferred.
+export WLR_RENDERER_ALLOW_SOFTWARE=1
+export WLR_NO_HARDWARE_CURSORS=1
+
 SETTINGS_URL="http://localhost:8800"
 APP_URL="$(cat /etc/airtime/screen.conf 2>/dev/null || echo 'https://airtime.dotcorr.com/tv')"
 

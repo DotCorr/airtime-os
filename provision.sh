@@ -24,4 +24,5 @@ cat > /home/kiosk/.profile << 'PROFILE'
 PROFILE
 chown kiosk:kiosk /home/kiosk/.profile
 
-chmod +x /usr/local/bin/airtime-kiosk /usr/local/bin/airtime-settingsd /etc/local.d/airtime.start
+chmod +x /usr/local/bin/airtime-kiosk /usr/local/bin/airtime-settingsd /etc/local.d/airtime.start \
+  /usr/local/share/airtime-settings/cgi-bin/networks /usr/local/share/airtime-settings/cgi-bin/connect

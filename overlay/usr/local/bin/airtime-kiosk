@@ -3,6 +3,11 @@
 # No network → local settings page first. Chromium dies → it respawns.
 set -u
 
+# Wayland compositors need a runtime dir; there's no systemd-logind to make one.
+export XDG_RUNTIME_DIR="/tmp/xdg-runtime-$(id -u)"
+mkdir -p "$XDG_RUNTIME_DIR"
+chmod 700 "$XDG_RUNTIME_DIR"
+
 SETTINGS_URL="http://localhost:8800"
 APP_URL="$(cat /etc/airtime/screen.conf 2>/dev/null || echo 'https://airtime.dotcorr.com/tv')"
 

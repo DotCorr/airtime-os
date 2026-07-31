@@ -1,0 +1,10 @@
+#!/bin/sh
+echo "Content-Type: application/json"; echo
+read -r body
+ssid=$(echo "$body" | sed -n 's/.*"ssid":"\([^"]*\)".*/\1/p')
+psk=$(echo "$body" | sed -n 's/.*"psk":"\([^"]*\)".*/\1/p')
+if nmcli dev wifi connect "$ssid" password "$psk" >/dev/null 2>&1; then
+  echo '{"ok":true}'
+else
+  echo '{"ok":false}'
+fi

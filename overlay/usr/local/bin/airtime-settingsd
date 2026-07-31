@@ -1,33 +1,5 @@
 #!/bin/sh
 # Tiny local settings server: Wi-Fi picker for first boot, driven by nmcli.
-# busybox httpd + CGI — no runtime dependencies beyond what's on the image.
+# busybox-extras httpd + static CGI shipped in the image overlay.
 set -u
-DIR=/usr/local/share/airtime-settings
-mkdir -p "$DIR/cgi-bin"
-
-cat > "$DIR/cgi-bin/networks" << 'CGI'
-#!/bin/sh
-echo "Content-Type: application/json"; echo
-nmcli -t -f SSID,SIGNAL,SECURITY dev wifi list 2>/dev/null | awk -F: '
-  BEGIN { print "[" ; first=1 }
-  $1 != "" { if (!first) printf(","); first=0
-    gsub(/"/, "\\\"", $1)
-    printf("{\"ssid\":\"%s\",\"signal\":%s,\"security\":\"%s\"}", $1, $2, $3) }
-  END { print "]" }'
-CGI
-
-cat > "$DIR/cgi-bin/connect" << 'CGI'
-#!/bin/sh
-echo "Content-Type: application/json"; echo
-read -r body
-ssid=$(echo "$body" | sed -n 's/.*"ssid":"\([^"]*\)".*/\1/p')
-psk=$(echo "$body" | sed -n 's/.*"psk":"\([^"]*\)".*/\1/p')
-if nmcli dev wifi connect "$ssid" password "$psk" >/dev/null 2>&1; then
-  echo '{"ok":true}'
-else
-  echo '{"ok":false}'
-fi
-CGI
-
-chmod +x "$DIR/cgi-bin/"*
-exec busybox httpd -f -p 8800 -h "$DIR"
+exec busybox-extras httpd -f -p 8800 -h /usr/local/share/airtime-settings

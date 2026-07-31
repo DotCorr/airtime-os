@@ -10,6 +10,11 @@ trap cleanup EXIT
 
 mkdir -p "$tmp"/etc
 echo "$HOSTNAME" > "$tmp"/etc/hostname
+
+# live boot installs exactly what /etc/apk/world lists (from the ISO's own
+# package repo) — without this the kiosk stack ships on the ISO but never installs
+mkdir -p "$tmp"/etc/apk
+{ echo alpine-base; cat /os/packages.txt; } > "$tmp"/etc/apk/world
 printf '127.0.0.1\tlocalhost %s\n::1\t\tlocalhost %s\n' "$HOSTNAME" "$HOSTNAME" > "$tmp"/etc/hosts
 
 # the whole overlay tree (kiosk scripts, settings site, NM config)

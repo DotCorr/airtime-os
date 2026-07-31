@@ -29,7 +29,10 @@ chromium_flags="--kiosk --no-first-run --noerrdialogs --disable-infobars \
 # and keep the CDP port open for headless debugging/screenshots.
 if grep -qi hypervisor /proc/cpuinfo; then
   export WLR_RENDERER=pixman
-  chromium_flags="$chromium_flags --disable-gpu --remote-debugging-port=9222 --remote-allow-origins=*"
+  # --disable-software-rasterizer with --disable-gpu skips ALL GL init attempts:
+  # without it the GPU process crash-loops on SwANGLE and kills the first
+  # renderer, leaving kiosk mode stuck on an unrecovered blank tab.
+  chromium_flags="$chromium_flags --disable-gpu --disable-software-rasterizer --remote-debugging-port=9222 --remote-allow-origins=*"
 fi
 
 while true; do

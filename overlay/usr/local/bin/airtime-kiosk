@@ -41,6 +41,17 @@ while true; do
   else
     url="$SETTINGS_URL"
   fi
+  # The first session after cold boot sometimes wedges its renderer before
+  # parsing anything (races the still-settling system); a bounced session
+  # reliably recovers. Watchdog: no page title after 4 min => bounce.
+  if grep -qi hypervisor /proc/cpuinfo; then
+    (
+      sleep 240
+      if wget -qO- http://127.0.0.1:9222/json 2>/dev/null | grep -q '"title": ""'; then
+        pkill chromium
+      fi
+    ) &
+  fi
   # Launch via the local bootstrap trampoline: it retries navigation until it
   # sticks, surviving dropped loads while the browser settles (see boot.html).
   boot="$SETTINGS_URL/boot.html#$url"

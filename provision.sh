@@ -2,6 +2,10 @@
 # Runs inside the image chroot at build time.
 set -eu
 
+# identity — otherwise every console line reads "localhost"
+echo airtimeos > /etc/hostname
+printf '127.0.0.1\tlocalhost airtimeos\n::1\t\tlocalhost airtimeos\n' > /etc/hosts
+
 # services
 rc-update add dbus default
 rc-update add networkmanager default

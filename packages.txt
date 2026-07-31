@@ -14,5 +14,6 @@ intel-media-driver
 font-inter
 dbus
 busybox-extras
+mesa-vulkan-swrast
 tzdata
 agetty

@@ -1,0 +1,71 @@
+#!/bin/sh -e
+# Builds the apkovl (boot-time rootfs overlay) for the AirtimeOS live ISO.
+# Mirrors what provision.sh does for the disk image, but applied at boot.
+HOSTNAME="$1"
+[ -z "$HOSTNAME" ] && HOSTNAME=airtimeos
+
+cleanup() { rm -rf "$tmp"; }
+tmp="$(mktemp -d)"
+trap cleanup EXIT
+
+mkdir -p "$tmp"/etc
+echo "$HOSTNAME" > "$tmp"/etc/hostname
+printf '127.0.0.1\tlocalhost %s\n::1\t\tlocalhost %s\n' "$HOSTNAME" "$HOSTNAME" > "$tmp"/etc/hosts
+
+# the whole overlay tree (kiosk scripts, settings site, NM config)
+cp -a /os/overlay/. "$tmp"/
+chmod +x "$tmp"/usr/local/bin/airtime-kiosk "$tmp"/usr/local/bin/airtime-settingsd \
+	"$tmp"/etc/local.d/airtime.start \
+	"$tmp"/usr/local/share/airtime-settings/cgi-bin/networks \
+	"$tmp"/usr/local/share/airtime-settings/cgi-bin/connect
+
+# live-boot provisioning: create the kiosk user + inittab entries at boot.
+# tty1 agetty respawns until the user exists, then autologin proceeds.
+mkdir -p "$tmp"/etc/local.d
+cat > "$tmp"/etc/local.d/airtime-live.start << 'EOF'
+#!/bin/sh
+for g in video input seat; do addgroup "$g" 2>/dev/null || true; done
+id kiosk >/dev/null 2>&1 || adduser -D -s /bin/sh kiosk
+for g in video input seat; do addgroup kiosk "$g" 2>/dev/null || true; done
+grep -q 'airtime-kiosk' /home/kiosk/.profile 2>/dev/null || {
+	printf '[ "$(tty)" = "/dev/tty1" ] && exec /usr/local/bin/airtime-kiosk\n' > /home/kiosk/.profile
+	chown kiosk:kiosk /home/kiosk/.profile
+}
+grep -q 'autologin kiosk' /etc/inittab || {
+	sed -i 's|^tty1.*|tty1::respawn:/sbin/agetty --autologin kiosk --noclear tty1 linux|' /etc/inittab
+	echo 'ttyS0::respawn:/sbin/getty -L 115200 ttyS0 vt100' >> /etc/inittab
+	kill -HUP 1
+}
+EOF
+chmod +x "$tmp"/etc/local.d/airtime-live.start
+
+rc_add() {
+	mkdir -p "$tmp"/etc/runlevels/"$2"
+	ln -sf /etc/init.d/"$1" "$tmp"/etc/runlevels/"$2"/"$1"
+}
+rc_add devfs sysinit
+rc_add dmesg sysinit
+rc_add mdev sysinit
+rc_add udev sysinit
+rc_add udev-trigger sysinit
+rc_add udev-settle sysinit
+rc_add hwdrivers sysinit
+rc_add modloop sysinit
+
+rc_add hwclock boot
+rc_add modules boot
+rc_add sysctl boot
+rc_add hostname boot
+rc_add bootmisc boot
+rc_add syslog boot
+
+rc_add dbus default
+rc_add networkmanager default
+rc_add seatd default
+rc_add local default
+
+rc_add mount-ro shutdown
+rc_add killprocs shutdown
+rc_add savecache shutdown
+
+tar -c -C "$tmp" etc usr | gzip -9n > "$HOSTNAME.apkovl.tar.gz"

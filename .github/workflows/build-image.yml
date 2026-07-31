@@ -46,3 +46,31 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release upload v0.1.0 dist/airtimeos-x86_64.img.gz --clobber -R ${{ github.repository }}
+
+  build-iso:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build live ISO via Alpine mkimage
+        run: |
+          mkdir -p dist
+          docker run --rm -v "$PWD":/os alpine:3.20 sh -ec '
+            apk add -q alpine-sdk build-base apk-tools alpine-conf busybox fakeroot syslinux xorriso squashfs-tools sudo mtools dosfstools grub-efi git
+            git clone --depth 1 -b 3.20-stable https://gitlab.alpinelinux.org/alpine/aports /aports
+            cp /os/iso/mkimg.airtimeos.sh /os/iso/genapkovl-airtimeos.sh /aports/scripts/
+            chmod +x /aports/scripts/mkimg.airtimeos.sh /aports/scripts/genapkovl-airtimeos.sh
+            cd /aports/scripts
+            ./mkimage.sh --tag v0.1.0 --outdir /os/dist --arch x86_64 \
+              --repository http://dl-cdn.alpinelinux.org/alpine/v3.20/main \
+              --repository http://dl-cdn.alpinelinux.org/alpine/v3.20/community \
+              --profile airtimeos
+            mv /os/dist/alpine-airtimeos-*.iso /os/dist/airtimeos-x86_64.iso 2>/dev/null || mv /os/dist/*airtimeos*.iso /os/dist/airtimeos-x86_64.iso
+          '
+          ls -la dist
+
+      - name: Upload ISO to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload v0.1.0 dist/airtimeos-x86_64.iso --clobber -R ${{ github.repository }}

@@ -17,7 +17,7 @@ mnt=/tmp/airtime-instroot
 mkdir -p "$mnt"
 mount "$part" "$mnt"
 # silent boot on the installed system too
-sed -i 's/^default_kernel_opts=.*/default_kernel_opts="quiet loglevel=1 vt.global_cursor_default=0 console=ttyS0,115200"/' \
+sed -i 's/^default_kernel_opts=.*/default_kernel_opts="quiet loglevel=1 vt.global_cursor_default=0 console=tty1 console=ttyS0,115200"/' \
   "$mnt/etc/update-extlinux.conf" 2>/dev/null || true
 chroot "$mnt" update-extlinux 2>/dev/null || true
 # carry the session with us: Wi-Fi profiles + browser state from the live stick

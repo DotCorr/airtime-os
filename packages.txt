@@ -23,3 +23,12 @@ sfdisk
 lsblk
 e2fsprogs
 util-linux-misc
+linux-firmware-i915
+linux-firmware-amdgpu
+linux-firmware-intel
+linux-firmware-brcm
+linux-firmware-rtl_nic
+linux-firmware-rtlwifi
+linux-firmware-ath10k
+linux-firmware-ath11k
+linux-firmware-mediatek

@@ -8,7 +8,7 @@ profile_airtimeos() {
 	output_format="iso"
 	kernel_flavors="lts"
 	kernel_addons=""
-	kernel_cmdline="quiet loglevel=1 vt.global_cursor_default=0 console=ttyS0,115200"
+	kernel_cmdline="quiet vt.global_cursor_default=0"
 	syslinux_serial=""
 	apks="$apks alpine-base $(cat /os/packages.txt | tr '\n' ' ')"
 	apkovl="genapkovl-airtimeos.sh"

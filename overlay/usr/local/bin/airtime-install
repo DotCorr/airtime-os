@@ -27,6 +27,10 @@ part=$(lsblk -nrpo NAME,TYPE "$disk" | awk '$2=="part"{p=$1} END{print p}')
 mnt=/tmp/airtime-instroot
 mkdir -p "$mnt"
 mount "$part" "$mnt"
+# setup-disk reinstalls packages and carries /etc — but not /usr/local,
+# which is where the entire kiosk lives
+mkdir -p "$mnt/usr/local"
+cp -a /usr/local/. "$mnt/usr/local/"
 # silent boot on the installed system too
 sed -i 's/^default_kernel_opts=.*/default_kernel_opts="quiet loglevel=1 vt.global_cursor_default=0 console=tty1 console=ttyS0,115200"/' \
   "$mnt/etc/update-extlinux.conf" 2>/dev/null || true

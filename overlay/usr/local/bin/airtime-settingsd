@@ -1,5 +1,4 @@
 #!/bin/sh
-# Tiny local settings server: Wi-Fi picker for first boot, driven by nmcli.
-# busybox-extras httpd + static CGI shipped in the image overlay.
+# Local settings server (Wi-Fi, install, updates) — root, loopback only.
 set -u
-exec busybox-extras httpd -f -p 8800 -h /usr/local/share/airtime-settings
+exec busybox-extras httpd -f -p 127.0.0.1:8800 -h /usr/local/share/airtime-settings

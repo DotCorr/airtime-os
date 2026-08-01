@@ -1,0 +1,12 @@
+#!/bin/sh
+echo "Content-Type: application/json"
+echo "Access-Control-Allow-Origin: *"
+echo
+boot=$(awk '$2 ~ /^\/media\// {print $1; exit}' /proc/mounts | sed 's/[0-9]*$//;s/p$//')
+lsblk -dnbo NAME,SIZE,MODEL,TYPE 2>/dev/null | awk -v boot="$boot" '
+  $NF=="disk" {
+    dev="/dev/"$1
+    model=""; for (i=3; i<NF; i++) model=model (i>3?" ":"") $i
+    printf("%s{\"dev\":\"%s\",\"size\":%s,\"model\":\"%s\",\"isBoot\":%s}", (n++?",":""), dev, $2, model, (dev==boot?"true":"false"))
+  }
+  BEGIN { printf("[") } END { printf("]") }'

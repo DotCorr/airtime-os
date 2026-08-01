@@ -15,7 +15,7 @@ var SETTINGS = decodeURIComponent(parts[1] || "");
 var fails = 0;
 function go() {
   fetch(APP, { mode: "no-cors", cache: "no-store" }).then(
-    function () { location.replace(APP); },
+    function () { location.replace(APP + (APP.indexOf("?") >= 0 ? "&" : "?") + "airtimeos=1"); },
     function () {
       fails++;
       if (SETTINGS && fails >= 4) {

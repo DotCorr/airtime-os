@@ -1,0 +1,16 @@
+#!/bin/sh
+echo "Content-Type: application/json"
+echo "Access-Control-Allow-Origin: *"
+echo
+read -r body
+disk=$(echo "$body" | sed -n 's/.*"disk":"\([^"]*\)".*/\1/p')
+case "$disk" in
+  /dev/sd[a-z]|/dev/vd[a-z]|/dev/nvme[0-9]n[0-9]|/dev/mmcblk[0-9]) ;;
+  *) echo '{"ok":false,"error":"bad disk"}'; exit 0 ;;
+esac
+if [ -f /tmp/airtime-install.pid ] && kill -0 "$(cat /tmp/airtime-install.pid)" 2>/dev/null; then
+  echo '{"ok":false,"error":"install already running"}'; exit 0
+fi
+nohup /usr/local/bin/airtime-install "$disk" > /tmp/airtime-install.log 2>&1 &
+echo $! > /tmp/airtime-install.pid
+echo '{"ok":true}'

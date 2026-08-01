@@ -1,0 +1,39 @@
+#!/sbin/openrc-run
+description="Persistent session data on the boot media (live boots)"
+
+depend() {
+	need localmount
+	before networkmanager
+}
+
+start() {
+	# disk installs are persistent by nature
+	grep -q ' / tmpfs ' /proc/mounts || return 0
+	dev=$(blkid -L AIRTIME_DATA 2>/dev/null || true)
+	if [ -z "$dev" ]; then
+		# carve a data partition out of the boot stick's free space
+		bootdev=$(awk '$2 ~ /^\/media\// {print $1; exit}' /proc/mounts | sed 's/[0-9]*$//; s/p$//')
+		[ -b "$bootdev" ] || return 0
+		echo ',,L' | sfdisk --append --no-reread "$bootdev" 2>/dev/null || return 0
+		partx -a "$bootdev" 2>/dev/null || mdev -s
+		part=$(lsblk -nrpo NAME,TYPE "$bootdev" | awk '$2=="part"{p=$1} END{print p}')
+		[ -b "$part" ] || return 0
+		mkfs.ext4 -q -L AIRTIME_DATA "$part" || return 0
+		dev="$part"
+	fi
+	mkdir -p /var/airtime-data
+	mount "$dev" /var/airtime-data 2>/dev/null || return 0
+	mkdir -p /var/airtime-data/nm /var/airtime-data/kiosk-config /home/kiosk/.config
+	# Wi-Fi profiles + browser session (pairing lives in the browser) survive
+	# power-off by living on the stick itself
+	mount --bind /var/airtime-data/nm /etc/NetworkManager/system-connections
+	mount --bind /var/airtime-data/kiosk-config /home/kiosk/.config
+	return 0
+}
+
+stop() {
+	umount /home/kiosk/.config 2>/dev/null || true
+	umount /etc/NetworkManager/system-connections 2>/dev/null || true
+	umount /var/airtime-data 2>/dev/null || true
+	return 0
+}

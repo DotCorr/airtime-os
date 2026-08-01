@@ -16,6 +16,9 @@ jobs:
       - name: Install build dependencies
         run: sudo apt-get update && sudo apt-get install -y e2fsprogs util-linux wget qemu-utils
 
+      - name: Stamp release version
+        run: echo "v0.1.0+$(git rev-parse --short HEAD) $(date -u +%Y-%m-%d)" > overlay/etc/airtime-release
+
       - name: Fetch alpine-make-vm-image
         run: |
           sudo wget -qO /usr/local/bin/alpine-make-vm-image \
@@ -47,10 +50,20 @@ jobs:
         run: |
           gh release upload v0.1.0 dist/airtimeos-x86_64.img.gz --clobber -R ${{ github.repository }}
 
+      - name: Overlay bundle (OS-level OTA payload)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tar -czf dist/airtimeos-overlay.tar.gz -C overlay .
+          gh release upload v0.1.0 dist/airtimeos-overlay.tar.gz --clobber -R ${{ github.repository }}
+
   build-iso:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Stamp release version
+        run: echo "v0.1.0+$(git rev-parse --short HEAD) $(date -u +%Y-%m-%d)" > overlay/etc/airtime-release
 
       - name: Build live ISO via Alpine mkimage
         run: |

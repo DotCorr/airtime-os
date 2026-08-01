@@ -19,11 +19,10 @@ printf '127.0.0.1\tlocalhost %s\n::1\t\tlocalhost %s\n' "$HOSTNAME" "$HOSTNAME" 
 
 # the whole overlay tree (kiosk scripts, settings site, NM config)
 cp -a /os/overlay/. "$tmp"/
-chmod +x "$tmp"/usr/local/bin/airtime-kiosk "$tmp"/usr/local/bin/airtime-settingsd \
-	"$tmp"/etc/local.d/airtime.start \
-	"$tmp"/usr/local/share/airtime-settings/cgi-bin/networks \
-	"$tmp"/usr/local/share/airtime-settings/cgi-bin/connect \
-	"$tmp"/etc/init.d/airtime-banner
+chmod +x "$tmp"/usr/local/bin/* "$tmp"/etc/local.d/airtime.start \
+	"$tmp"/usr/local/share/airtime-settings/cgi-bin/* \
+	"$tmp"/etc/init.d/airtime-banner "$tmp"/etc/init.d/airtime-settingsd "$tmp"/etc/init.d/airtime-data \
+	"$tmp"/etc/periodic/daily/airtime-autoupdate
 
 # silent boot: no motd/issue noise, parallel service startup
 : > "$tmp"/etc/motd
@@ -40,7 +39,8 @@ id kiosk >/dev/null 2>&1 || adduser -D -s /bin/sh kiosk
 for g in video input seat; do addgroup kiosk "$g" 2>/dev/null || true; done
 grep -q 'airtime-kiosk' /home/kiosk/.profile 2>/dev/null || {
 	printf '[ "$(tty)" = "/dev/tty1" ] && exec /usr/local/bin/airtime-kiosk\n' > /home/kiosk/.profile
-	chown kiosk:kiosk /home/kiosk/.profile
+	chown kiosk:kiosk /home/kiosk /home/kiosk/.profile
+	chown kiosk:kiosk /home/kiosk/.config 2>/dev/null || true
 }
 grep -q 'autologin kiosk' /etc/inittab || {
 	sed -i 's|^tty1.*|tty1::respawn:/sbin/agetty --autologin kiosk --noclear tty1 linux|' /etc/inittab
@@ -71,10 +71,12 @@ rc_add bootmisc boot
 rc_add syslog boot
 
 rc_add airtime-banner boot
+rc_add airtime-data boot
 rc_add dbus default
 rc_add networkmanager default
 rc_add seatd default
 rc_add local default
+rc_add airtime-settingsd default
 
 rc_add mount-ro shutdown
 rc_add killprocs shutdown

@@ -17,3 +17,9 @@ busybox-extras
 mesa-vulkan-swrast
 tzdata
 agetty
+alpine-conf
+syslinux
+sfdisk
+lsblk
+e2fsprogs
+util-linux-misc

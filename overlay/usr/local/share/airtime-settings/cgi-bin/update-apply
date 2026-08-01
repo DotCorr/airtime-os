@@ -1,0 +1,10 @@
+#!/bin/sh
+echo "Content-Type: application/json"
+echo "Access-Control-Allow-Origin: *"
+echo
+if grep -q ' / tmpfs ' /proc/mounts; then
+  echo '{"ok":false,"error":"live media cannot update itself — install to disk first, or download the newest image"}'
+  exit 0
+fi
+nohup /usr/local/bin/airtime-update > /tmp/airtime-update.log 2>&1 &
+echo '{"ok":true}'

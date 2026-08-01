@@ -1,0 +1,18 @@
+#!/bin/sh
+# OS-level OTA for disk installs: pull the latest overlay bundle from GitHub
+# Releases, apply it, upgrade packages, restart the kiosk. The web app itself
+# updates independently (it's a website).
+set -e
+latest=$(wget -qO- https://api.github.com/repos/DotCorr/airtime-os/releases/latest | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p')
+[ -n "$latest" ] || { echo "cannot reach release feed"; exit 1; }
+cur=$(cat /etc/airtime-release 2>/dev/null || echo dev)
+echo "current: $cur  latest: $latest"
+wget -qO /tmp/airtime-overlay.tar.gz \
+  "https://github.com/DotCorr/airtime-os/releases/download/$latest/airtimeos-overlay.tar.gz"
+tar -xzf /tmp/airtime-overlay.tar.gz -C /
+rm -f /tmp/airtime-overlay.tar.gz
+apk upgrade --available >/dev/null 2>&1 || true
+# restart the kiosk session with the new bits (agetty respawns it)
+pkill -f airtime-kiosk 2>/dev/null || true
+pkill cage 2>/dev/null || true
+echo "updated to $(cat /etc/airtime-release 2>/dev/null || echo "$latest")"

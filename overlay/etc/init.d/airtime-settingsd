@@ -1,0 +1,9 @@
+#!/sbin/openrc-run
+description="Airtime local settings server (root: install/updates need it)"
+command="/usr/local/bin/airtime-settingsd"
+command_background="yes"
+pidfile="/run/airtime-settingsd.pid"
+
+depend() {
+	need localmount
+}

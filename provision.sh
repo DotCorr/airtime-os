@@ -40,8 +40,11 @@ rc-update add udev-settle sysinit
 
 # branded boot screen while services come up (chmod before rc-update — it
 # refuses to register a non-executable service)
-chmod +x /etc/init.d/airtime-banner
+chmod +x /etc/init.d/airtime-banner /etc/init.d/airtime-settingsd /etc/init.d/airtime-data
 rc-update add airtime-banner boot
+rc-update add airtime-data boot
+rc-update add airtime-settingsd default
+rc-update add crond default
 
 # NM connection profiles must be root-only or NM ignores them
 chmod 600 /etc/NetworkManager/system-connections/wired.nmconnection
@@ -52,6 +55,5 @@ cat > /home/kiosk/.profile << 'PROFILE'
 PROFILE
 chown kiosk:kiosk /home/kiosk/.profile
 
-chmod +x /usr/local/bin/airtime-kiosk /usr/local/bin/airtime-settingsd /etc/local.d/airtime.start \
-  /usr/local/share/airtime-settings/cgi-bin/networks /usr/local/share/airtime-settings/cgi-bin/connect \
-  /etc/init.d/airtime-banner
+chmod +x /usr/local/bin/* /etc/local.d/airtime.start /etc/periodic/daily/airtime-autoupdate \
+  /usr/local/share/airtime-settings/cgi-bin/*

@@ -1,0 +1,33 @@
+#!/bin/sh
+# Installs the currently-running live system onto an internal disk (sys mode),
+# carries over Wi-Fi + browser session, and keeps the silent branded boot.
+set -e
+disk="$1"
+[ -b "$disk" ] || { echo "no such disk: $disk"; exit 1; }
+if grep -q "^$disk" /proc/mounts; then
+  echo "refusing: $disk is the boot/data media"; exit 1
+fi
+echo "== installing AirtimeOS to $disk (everything on it will be erased) =="
+export ERASE_DISKS="$disk"
+setup-disk -m sys -s 0 -q "$disk"
+
+# post-install fixes inside the new root
+part=$(lsblk -nrpo NAME,TYPE "$disk" | awk '$2=="part"{p=$1} END{print p}')
+mnt=/tmp/airtime-instroot
+mkdir -p "$mnt"
+mount "$part" "$mnt"
+# silent boot on the installed system too
+sed -i 's/^default_kernel_opts=.*/default_kernel_opts="quiet loglevel=1 vt.global_cursor_default=0 console=ttyS0,115200"/' \
+  "$mnt/etc/update-extlinux.conf" 2>/dev/null || true
+chroot "$mnt" update-extlinux 2>/dev/null || true
+# carry the session with us: Wi-Fi profiles + browser state from the live stick
+if [ -d /var/airtime-data/nm ]; then
+  cp -a /var/airtime-data/nm/. "$mnt/etc/NetworkManager/system-connections/" 2>/dev/null || true
+fi
+if [ -d /var/airtime-data/kiosk-config ]; then
+  mkdir -p "$mnt/home/kiosk/.config"
+  cp -a /var/airtime-data/kiosk-config/. "$mnt/home/kiosk/.config/" 2>/dev/null || true
+  chroot "$mnt" chown -R kiosk:kiosk /home/kiosk 2>/dev/null || true
+fi
+umount "$mnt"
+echo "AIRTIME_INSTALL_DONE — remove the USB stick and reboot"

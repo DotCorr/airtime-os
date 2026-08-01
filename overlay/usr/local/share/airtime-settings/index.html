@@ -23,6 +23,14 @@
   button { margin-top: 14px; width: 100%; background: #fff; color: #000; border: none;
            padding: 15px; font-size: 1.05rem; font-weight: 700; cursor: pointer; }
   .status { margin-top: 16px; color: #FB5334; min-height: 1.4em; }
+  .section { margin-top: 40px; border-top: 1px solid rgba(255,255,255,0.12); padding-top: 24px; }
+  .section h2 { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; }
+  .row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0;
+         font-size: 0.95rem; color: rgba(255,255,255,0.75); gap: 12px; }
+  .btn2 { background: none; border: 1px solid rgba(255,255,255,0.4); color: #fff; padding: 10px 16px;
+          font-size: 0.9rem; cursor: pointer; width: auto; margin: 0; font-weight: 600; }
+  .btn2.danger { border-color: #FB5334; color: #FB5334; }
+  .hide { display: none; }
 </style>
 </head>
 <body>
@@ -39,6 +47,27 @@
       <button onclick="connect()">Connect</button>
     </div>
     <div class="status" id="status"></div>
+
+    <div class="section">
+      <h2>System</h2>
+      <div class="row"><span>Version</span><span id="sys-ver">–</span></div>
+      <div class="row"><span>Running from</span><span id="sys-mode">–</span></div>
+      <div class="row hide" id="install-row">
+        <span>Install AirtimeOS on this computer's disk<br><small style="color:rgba(255,255,255,0.4)">Boots on its own afterwards — no USB stick needed. Erases the chosen disk.</small></span>
+        <button class="btn2 danger" onclick="showDisks()">Install…</button>
+      </div>
+      <div id="disk-list"></div>
+      <div id="install-progress" class="status"></div>
+    </div>
+
+    <div class="section">
+      <h2>Updates</h2>
+      <div class="row"><span>Latest available</span><span id="upd-latest">–</span></div>
+      <div class="row"><span>Automatic updates</span><button class="btn2" id="upd-auto" onclick="toggleAuto()">–</button></div>
+      <div class="row hide" id="upd-row"><span>A newer AirtimeOS is available</span>
+        <button class="btn2" onclick="applyUpdate()">Update now</button></div>
+      <div class="status" id="upd-status"></div>
+    </div>
   </div>
 <script>
 let chosen = null;
@@ -67,6 +96,56 @@ async function connect() {
   if (r.ok) setTimeout(() => location.href = "https://airtime.dotcorr.com/tv", 2500);
 }
 scan(); setInterval(scan, 8000);
+let sysMode = "disk";
+async function sysinfo() {
+  try {
+    const st = await (await fetch("/cgi-bin/status")).json();
+    sysMode = st.mode;
+    document.getElementById("sys-ver").textContent = st.version;
+    document.getElementById("sys-mode").textContent = st.mode === "live" ? "USB / live media" : "internal disk";
+    document.getElementById("install-row").classList.toggle("hide", st.mode !== "live");
+    document.getElementById("upd-auto").textContent = st.autoupdate === "on" ? "On" : "Off";
+    const chk = await (await fetch("/cgi-bin/update-check")).json();
+    document.getElementById("upd-latest").textContent = chk.latest;
+    const newer = chk.latest !== "unknown" && chk.current.split(" ")[0] !== chk.latest;
+    document.getElementById("upd-row").classList.toggle("hide", !(newer && st.mode === "disk"));
+  } catch {}
+}
+sysinfo();
+async function showDisks() {
+  const disks = await (await fetch("/cgi-bin/disks")).json();
+  const el = document.getElementById("disk-list");
+  el.innerHTML = "";
+  disks.filter((d) => !d.isBoot).forEach((d) => {
+    const b = document.createElement("button");
+    b.className = "btn2 danger";
+    b.style.cssText = "display:block;width:100%;margin-top:8px;text-align:left";
+    b.textContent = `Erase ${d.dev} (${(d.size / 1e9).toFixed(0)} GB ${d.model || ""}) and install`;
+    b.onclick = () => install(d.dev);
+    el.appendChild(b);
+  });
+  if (!el.children.length) el.textContent = "No other disks found.";
+}
+async function install(dev) {
+  if (!confirm(`Really erase ${dev} and install AirtimeOS? This cannot be undone.`)) return;
+  const r = await (await fetch("/cgi-bin/install", { method: "POST", body: JSON.stringify({ disk: dev }) })).json();
+  if (!r.ok) { document.getElementById("install-progress").textContent = r.error; return; }
+  document.getElementById("disk-list").innerHTML = "";
+  const poll = setInterval(async () => {
+    const st = await (await fetch("/cgi-bin/install-status")).json();
+    document.getElementById("install-progress").textContent = st.done
+      ? "Installed. Remove the USB stick and restart this computer." : "Installing… " + st.log.slice(-120);
+    if (st.done || !st.running) clearInterval(poll);
+  }, 3000);
+}
+async function toggleAuto() {
+  const r = await (await fetch("/cgi-bin/update-toggle", { method: "POST" })).json();
+  document.getElementById("upd-auto").textContent = r.autoupdate === "on" ? "On" : "Off";
+}
+async function applyUpdate() {
+  const r = await (await fetch("/cgi-bin/update-apply", { method: "POST" })).json();
+  document.getElementById("upd-status").textContent = r.ok ? "Updating — the screen restarts by itself." : r.error;
+}
 // if the network comes back by any other path (ethernet plugged in, wifi
 // remembered), leave setup and start the kiosk automatically
 setInterval(() => {

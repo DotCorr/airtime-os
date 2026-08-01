@@ -147,11 +147,14 @@ async function applyUpdate() {
   document.getElementById("upd-status").textContent = r.ok ? "Updating — the screen restarts by itself." : r.error;
 }
 // if the network comes back by any other path (ethernet plugged in, wifi
-// remembered), leave setup and start the kiosk automatically
-setInterval(() => {
-  fetch("https://airtime.dotcorr.com/tv", { mode: "no-cors", cache: "no-store" })
-    .then(() => location.href = "https://airtime.dotcorr.com/tv", () => {});
-}, 10000);
+// remembered), leave setup and start the kiosk automatically — but ONLY when
+// this page is the standalone fallback, never inside the settings overlay
+if (window.top === window) {
+  setInterval(() => {
+    fetch("https://airtime.dotcorr.com/tv", { mode: "no-cors", cache: "no-store" })
+      .then(() => location.href = "https://airtime.dotcorr.com/tv", () => {});
+  }, 10000);
+}
 </script>
 </body>
 </html>

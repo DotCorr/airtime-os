@@ -36,6 +36,8 @@ cat > "$tmp"/etc/local.d/airtime-live.start << 'EOF'
 #!/bin/sh
 for g in video input seat; do addgroup "$g" 2>/dev/null || true; done
 id kiosk >/dev/null 2>&1 || adduser -D -s /bin/sh kiosk
+# debug parity with the disk image: passwordless root on the serial console
+passwd -d root 2>/dev/null || true
 for g in video input seat; do addgroup kiosk "$g" 2>/dev/null || true; done
 grep -q 'airtime-kiosk' /home/kiosk/.profile 2>/dev/null || {
 	printf '[ "$(tty)" = "/dev/tty1" ] && exec /usr/local/bin/airtime-kiosk\n' > /home/kiosk/.profile

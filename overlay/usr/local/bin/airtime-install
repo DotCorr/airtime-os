@@ -8,6 +8,17 @@ if grep -q "^$disk" /proc/mounts; then
   echo "refusing: $disk is the boot/data media"; exit 1
 fi
 echo "== installing AirtimeOS to $disk (everything on it will be erased) =="
+# the ISO ships the kernel as boot files, not as a package — installs pull it
+# from the network repos, so require connectivity up front with a clear error
+if ! wget -q --spider http://dl-cdn.alpinelinux.org/alpine/v3.20/main/x86_64/APKINDEX.tar.gz 2>/dev/null; then
+  echo "ERROR: installing needs an internet connection (packages are fetched during install)"
+  exit 1
+fi
+grep -q dl-cdn /etc/apk/repositories 2>/dev/null || {
+  echo "http://dl-cdn.alpinelinux.org/alpine/v3.20/main" >> /etc/apk/repositories
+  echo "http://dl-cdn.alpinelinux.org/alpine/v3.20/community" >> /etc/apk/repositories
+}
+apk update -q || true
 export ERASE_DISKS="$disk"
 setup-disk -m sys -s 0 -q "$disk"
 

@@ -6,23 +6,34 @@ depend() {
 	before networkmanager
 }
 
+# Live USBs mount the WHOLE disk device (isohybrid), so the kernel refuses to
+# surface partitions added to it while it's in use. We therefore address the
+# data region through an offset loop device instead of a kernel partition —
+# works the same on real Etcher-written sticks and in VMs.
+
 start() {
 	# disk installs are persistent by nature
 	grep -q ' / tmpfs ' /proc/mounts || return 0
-	dev=$(blkid -L AIRTIME_DATA 2>/dev/null || true)
-	if [ -z "$dev" ]; then
-		# carve a data partition out of the boot stick's free space
-		bootdev=$(awk '$2 ~ /^\/media\// {print $1; exit}' /proc/mounts | sed 's/[0-9]*$//; s/p$//')
-		[ -b "$bootdev" ] || return 0
-		echo ',,L' | sfdisk --append --no-reread "$bootdev" 2>/dev/null || return 0
-		partx -a "$bootdev" 2>/dev/null || mdev -s
-		part=$(lsblk -nrpo NAME,TYPE "$bootdev" | awk '$2=="part"{p=$1} END{print p}')
-		[ -b "$part" ] || return 0
-		mkfs.ext4 -q -L AIRTIME_DATA "$part" || return 0
-		dev="$part"
+	bootdev=$(awk '$2 ~ /^\/media\// {print $1; exit}' /proc/mounts | sed 's/[0-9]*$//; s/p$//')
+	[ -b "$bootdev" ] || return 0
+
+	# ensure a data partition entry exists after the ISO's own entries
+	entries=$(sfdisk -d "$bootdev" 2>/dev/null | grep -c '^/dev/') || return 0
+	if [ "$entries" -lt 3 ]; then
+		echo ',,L' | sfdisk --append --no-reread --no-tell-kernel "$bootdev" 2>/dev/null || return 0
+	fi
+	# last table entry = our data region (runs to the end of the stick)
+	startsec=$(sfdisk -d "$bootdev" 2>/dev/null | grep '^/dev/' | tail -1 | sed -n 's/.*start= *\([0-9]*\).*/\1/p')
+	[ -n "$startsec" ] || return 0
+
+	loopdev=$(losetup -f) || return 0
+	losetup -o $((startsec * 512)) "$loopdev" "$bootdev" 2>/dev/null || return 0
+	# first boot: no filesystem there yet
+	if ! blkid "$loopdev" 2>/dev/null | grep -q 'LABEL="AIRTIME_DATA"'; then
+		mkfs.ext4 -q -F -L AIRTIME_DATA "$loopdev" || { losetup -d "$loopdev"; return 0; }
 	fi
 	mkdir -p /var/airtime-data
-	mount "$dev" /var/airtime-data 2>/dev/null || return 0
+	mount "$loopdev" /var/airtime-data 2>/dev/null || { losetup -d "$loopdev"; return 0; }
 	mkdir -p /var/airtime-data/nm /var/airtime-data/kiosk-config /home/kiosk/.config
 	# Wi-Fi profiles + browser session (pairing lives in the browser) survive
 	# power-off by living on the stick itself

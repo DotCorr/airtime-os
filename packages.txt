@@ -32,3 +32,4 @@ linux-firmware-rtlwifi
 linux-firmware-ath10k
 linux-firmware-ath11k
 linux-firmware-mediatek
+losetup

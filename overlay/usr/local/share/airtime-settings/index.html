@@ -41,10 +41,21 @@
     </div>
     <h1>Connect this screen to the internet</h1>
     <p class="sub">Pick your Wi-Fi. Once connected, this screen sets itself up — you'll just scan a QR code with your phone.</p>
+    <div class="row" id="current-row" style="display:none"><span id="current-ssid"></span>
+      <button class="btn2" onclick="forget()">Forget</button></div>
     <div id="nets">Scanning…</div>
     <div id="pw">
       <input id="psk" type="password" placeholder="Wi-Fi password" />
       <button onclick="connect()">Connect</button>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn2" onclick="scan()">Rescan</button>
+      <button class="btn2" onclick="toggleHidden()">Join hidden network</button>
+    </div>
+    <div id="hidden-form" class="hide" style="margin-top:14px">
+      <input id="hidden-ssid" placeholder="Network name (SSID)" style="margin-bottom:10px" />
+      <input id="hidden-psk" type="password" placeholder="Password (leave empty if open)" />
+      <button onclick="connectHidden()">Connect to hidden network</button>
     </div>
     <div class="status" id="status"></div>
 
@@ -96,6 +107,32 @@ async function connect() {
   if (r.ok) setTimeout(() => location.href = "https://airtime.dotcorr.com/tv", 2500);
 }
 scan(); setInterval(scan, 8000);
+function toggleHidden() { document.getElementById("hidden-form").classList.toggle("hide"); }
+async function connectHidden() {
+  document.getElementById("status").textContent = "Connecting\u2026";
+  const r = await (await fetch("/cgi-bin/connect", { method: "POST",
+    body: JSON.stringify({ ssid: document.getElementById("hidden-ssid").value,
+      psk: document.getElementById("hidden-psk").value, hidden: true }) })).json();
+  document.getElementById("status").textContent = r.ok
+    ? "Connected \u2014 starting Airtime\u2026" : "Could not join \u2014 check name and password.";
+  if (r.ok) setTimeout(() => location.href = "https://airtime.dotcorr.com/tv", 2500);
+}
+let currentSsid = null;
+async function refreshCurrent() {
+  try {
+    const st = await (await fetch("/cgi-bin/status")).json();
+    currentSsid = st.wifi ? st.wifi.replace(/ \(\d+%\)$/, "") : null;
+    document.getElementById("current-row").style.display = currentSsid ? "flex" : "none";
+    if (currentSsid) document.getElementById("current-ssid").textContent = "Connected to " + st.wifi;
+  } catch {}
+}
+refreshCurrent(); setInterval(refreshCurrent, 8000);
+async function forget() {
+  if (!currentSsid) return;
+  await fetch("/cgi-bin/forget", { method: "POST", body: JSON.stringify({ ssid: currentSsid }) });
+  document.getElementById("status").textContent = "Network forgotten.";
+  refreshCurrent();
+}
 let sysMode = "disk";
 async function sysinfo() {
   try {

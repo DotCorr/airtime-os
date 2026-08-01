@@ -79,6 +79,7 @@ rc_add networkmanager default
 rc_add seatd default
 rc_add local default
 rc_add airtime-settingsd default
+rc_add wpa_supplicant default
 
 rc_add mount-ro shutdown
 rc_add killprocs shutdown

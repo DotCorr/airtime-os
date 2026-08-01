@@ -1,0 +1,8 @@
+#!/bin/sh
+echo "Content-Type: application/json"
+echo "Access-Control-Allow-Origin: *"
+echo
+read -r body
+ssid=$(echo "$body" | sed -n 's/.*"ssid":"\([^"]*\)".*/\1/p')
+[ -n "$ssid" ] && nmcli connection delete id "$ssid" >/dev/null 2>&1
+echo '{"ok":true}'

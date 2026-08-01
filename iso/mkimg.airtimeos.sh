@@ -10,7 +10,7 @@ profile_airtimeos() {
 	kernel_addons=""
 	kernel_cmdline="quiet vt.global_cursor_default=0"
 	syslinux_serial=""
-	apks="$apks alpine-base $(cat /os/packages.txt | tr '\n' ' ')"
+	apks="$apks alpine-base linux-lts grub-efi grub-bios dosfstools efibootmgr $(cat /os/packages.txt | tr '\n' ' ')"
 	apkovl="genapkovl-airtimeos.sh"
 	hostname="airtimeos"
 }

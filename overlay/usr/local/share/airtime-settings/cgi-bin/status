@@ -12,5 +12,6 @@ conn=$(nmcli networking connectivity 2>/dev/null || echo unknown)
 ver=$(cat /etc/airtime-release 2>/dev/null || echo dev)
 mode=disk; grep -q ' / tmpfs ' /proc/mounts && mode=live
 auto=on; [ -f /etc/airtime-noautoupdate ] && auto=off
-printf '{"battery":%s,"ac":%s,"wifi":"%s","eth":"%s","connectivity":"%s","version":"%s","mode":"%s","autoupdate":"%s"}' \
-  "$bat" "$ac" "$wifi" "$eth" "$conn" "$ver" "$mode" "$auto"
+uscale=$(cat /etc/airtime-scale 2>/dev/null || echo auto)
+printf '{"battery":%s,"ac":%s,"wifi":"%s","eth":"%s","connectivity":"%s","version":"%s","mode":"%s","autoupdate":"%s","scale":"%s"}' \
+  "$bat" "$ac" "$wifi" "$eth" "$conn" "$ver" "$mode" "$auto" "$uscale"

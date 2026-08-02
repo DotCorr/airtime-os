@@ -8,4 +8,4 @@ scale=$(echo "$body" | sed -n 's/.*"scale":"\([0-9.]*\|auto\)".*/\1/p')
 if [ "$scale" = "auto" ]; then rm -f /etc/airtime-scale; else echo "$scale" > /etc/airtime-scale; fi
 echo '{"ok":true}'
 # restart the kiosk session so the new scale applies (agetty respawns it)
-( sleep 1; pkill -f airtime-kiosk; pkill cage; pkill chromium ) >/dev/null 2>&1 &
+( sleep 1; pkill chromium ) >/dev/null 2>&1 &

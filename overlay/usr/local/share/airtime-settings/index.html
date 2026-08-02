@@ -43,6 +43,16 @@
   .bar > div { width: 80px; height: 100%; background: #FB5334; animation: slide 1.1s ease-in-out infinite alternate; }
   @keyframes slide { from { transform: translateX(-20px) } to { transform: translateX(560px) } }
   .log { margin-top: 10px; font-size: 0.78rem; color: rgba(255,255,255,0.45); word-break: break-all; min-height: 1.2em; }
+  #osk { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(10,10,10,0.97);
+         border-top: 1px solid rgba(255,255,255,0.18); padding: 10px 8px calc(10px + env(safe-area-inset-bottom));
+         z-index: 90; user-select: none; }
+  .osk-row { display: flex; justify-content: center; gap: 6px; margin-bottom: 6px; }
+  .osk-key { flex: 0 1 58px; min-width: 34px; height: 52px; background: #1c1c1c; color: #fff;
+             border: 1px solid rgba(255,255,255,0.14); font-size: 1.05rem; font-weight: 600;
+             display: flex; align-items: center; justify-content: center; cursor: pointer; margin: 0; padding: 0; width: auto; }
+  .osk-key:active { background: #FB5334; border-color: #FB5334; }
+  .osk-key.wide { flex: 2 1 110px; font-size: 0.85rem; }
+  .osk-key.space { flex: 5 1 220px; }
 </style>
 </head>
 <body>
@@ -66,7 +76,7 @@
     <div class="row" style="margin-top:14px">
       <button class="btn2" onclick="scan()">Rescan</button>
       <button class="btn2" onclick="toggleHidden()">Join hidden network</button>
-      <button class="btn2" onclick="kbd('show')">Keyboard</button>
+      <button class="btn2" onclick="oskToggle()">Keyboard</button>
     </div>
     <div id="hidden-form" class="hide" style="margin-top:14px">
       <input id="hidden-ssid" placeholder="Network name (SSID)" style="margin-bottom:10px" />
@@ -81,8 +91,7 @@
     <div class="section">
       <h2>Display &amp; input</h2>
       <div class="row"><span>On-screen keyboard</span>
-        <span><button class="btn2" onclick="kbd('show')">Show</button>
-        <button class="btn2" onclick="kbd('hide')">Hide</button></span></div>
+        <button class="btn2" onclick="oskToggle()">Show / hide</button></div>
       <div class="row"><span>Display scaling<br><small style="color:rgba(255,255,255,0.4)">The screen restarts briefly to apply.</small></span>
         <select id="scale-sel" onchange="setScale(this.value)">
           <option value="auto">Auto</option>
@@ -158,9 +167,6 @@ function connectHidden() {
 }
 function toggleHidden() { document.getElementById("hidden-form").classList.toggle("hide"); }
 scan(); setInterval(scan, 8000);
-async function kbd(action) {
-  await fetch("/cgi-bin/keyboard", { method: "POST", body: JSON.stringify({ action }) }).catch(() => {});
-}
 function setScale(v) {
   document.getElementById("status").textContent = "Applying — the screen restarts briefly…";
   fetch("/cgi-bin/display-scale", { method: "POST", body: JSON.stringify({ scale: v }) }).catch(() => {});
@@ -254,6 +260,94 @@ if (window.top === window) {
     fetch("https://airtime.dotcorr.com/tv", { mode: "no-cors", cache: "no-store" })
       .then(() => location.href = "https://airtime.dotcorr.com/tv", () => {});
   }, 10000);
+}
+
+// ---- content scaling: big panels render tiny at 1x; zoom the CONTENT ----
+(function () {
+  const manual = null; // settings page always auto-scales itself
+  const w = window.screen.width;
+  const z = w >= 2200 ? Math.min(2.5, w / 1500) : 1;
+  if (z !== 1) document.documentElement.style.zoom = String(z);
+})();
+
+// ---- built-in on-screen keyboard (no compositor tricks, just the page) ----
+let oskTarget = null;
+document.addEventListener("focusin", (e) => {
+  if (e.target.tagName === "INPUT") oskTarget = e.target;
+});
+const OSK_LAYOUTS = {
+  abc: ["qwertyuiop", "asdfghjkl", "zxcvbnm"],
+  ABC: ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"],
+  num: ["1234567890", "!@#$%^&*()", "-_=+.,:;?/"],
+};
+let oskMode = "abc";
+function oskType(ch) {
+  if (!oskTarget) return;
+  const st = oskTarget.selectionStart ?? oskTarget.value.length;
+  oskTarget.setRangeText(ch, st, oskTarget.selectionEnd ?? st, "end");
+  oskTarget.dispatchEvent(new Event("input", { bubbles: true }));
+}
+function oskBack() {
+  if (!oskTarget) return;
+  const st = oskTarget.selectionStart ?? oskTarget.value.length;
+  if (st > 0) {
+    oskTarget.setRangeText("", st - 1, oskTarget.selectionEnd ?? st, "end");
+    oskTarget.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+}
+function oskRender() {
+  let el = document.getElementById("osk");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "osk";
+    document.body.appendChild(el);
+  }
+  el.innerHTML = "";
+  OSK_LAYOUTS[oskMode].forEach((row, i) => {
+    const r = document.createElement("div");
+    r.className = "osk-row";
+    [...row].forEach((ch) => {
+      const k = document.createElement("button");
+      k.className = "osk-key";
+      k.textContent = ch;
+      k.onmousedown = (e) => { e.preventDefault(); oskType(ch); };
+      r.appendChild(k);
+    });
+    if (i === 2) {
+      const b = document.createElement("button");
+      b.className = "osk-key wide";
+      b.textContent = "⌫";
+      b.innerHTML = '<svg width="22" height="16" viewBox="0 0 24 18" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 1h14v16H8L1 9z"/><path d="M12 6l6 6M18 6l-6 6"/></svg>';
+      b.onmousedown = (e) => { e.preventDefault(); oskBack(); };
+      r.appendChild(b);
+    }
+    el.appendChild(r);
+  });
+  const last = document.createElement("div");
+  last.className = "osk-row";
+  const sh = document.createElement("button");
+  sh.className = "osk-key wide";
+  sh.textContent = oskMode === "ABC" ? "abc" : "ABC";
+  sh.onmousedown = (e) => { e.preventDefault(); oskMode = oskMode === "ABC" ? "abc" : "ABC"; oskRender(); };
+  const num = document.createElement("button");
+  num.className = "osk-key wide";
+  num.textContent = oskMode === "num" ? "abc" : "123";
+  num.onmousedown = (e) => { e.preventDefault(); oskMode = oskMode === "num" ? "abc" : "num"; oskRender(); };
+  const sp = document.createElement("button");
+  sp.className = "osk-key space";
+  sp.innerHTML = "&nbsp;";
+  sp.onmousedown = (e) => { e.preventDefault(); oskType(" "); };
+  const done = document.createElement("button");
+  done.className = "osk-key wide";
+  done.textContent = "done";
+  done.onmousedown = (e) => { e.preventDefault(); oskToggle(); };
+  [sh, num, sp, done].forEach((k) => last.appendChild(k));
+  el.appendChild(last);
+}
+function oskToggle() {
+  const el = document.getElementById("osk");
+  if (el) { el.remove(); return; }
+  oskRender();
 }
 </script>
 </body>

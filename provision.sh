@@ -44,7 +44,6 @@ chmod +x /etc/init.d/airtime-banner /etc/init.d/airtime-settingsd /etc/init.d/ai
 rc-update add airtime-banner boot
 rc-update add airtime-data boot
 rc-update add airtime-settingsd default
-rc-update add wpa_supplicant default
 rc-update add crond default
 
 # NM connection profiles must be root-only or NM ignores them

@@ -1,0 +1,11 @@
+#!/bin/sh
+echo "Content-Type: application/json"
+echo "Access-Control-Allow-Origin: *"
+echo
+read -r body
+scale=$(echo "$body" | sed -n 's/.*"scale":"\([0-9.]*\|auto\)".*/\1/p')
+[ -z "$scale" ] && { echo '{"ok":false,"error":"no scale"}'; exit 0; }
+if [ "$scale" = "auto" ]; then rm -f /etc/airtime-scale; else echo "$scale" > /etc/airtime-scale; fi
+echo '{"ok":true}'
+# restart the kiosk session so the new scale applies (agetty respawns it)
+( sleep 1; pkill -f airtime-kiosk; pkill cage; pkill chromium ) >/dev/null 2>&1 &

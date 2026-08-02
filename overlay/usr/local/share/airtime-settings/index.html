@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Airtime — connect this screen</title>
+<title>Airtime — screen settings</title>
 <style>
   * { margin: 0; box-sizing: border-box; }
   body { background: #000; color: #fff; font-family: Inter, sans-serif; min-height: 100vh;
-         display: flex; align-items: center; justify-content: center; padding: 4vw; }
+         display: flex; align-items: flex-start; justify-content: center; padding: 5vh 4vw; }
   .wrap { max-width: 640px; width: 100%; }
   .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
   .dome { width: 26px; height: 26px; }
@@ -16,8 +16,15 @@
   .net { display: flex; justify-content: space-between; align-items: center; padding: 16px 4px;
          border-bottom: 1px solid rgba(255,255,255,0.12); cursor: pointer; font-size: 1.05rem; }
   .net:hover { background: rgba(255,255,255,0.04); }
+  .net .name { display: flex; align-items: center; gap: 8px; }
+  .net svg { opacity: 0.55; }
   .sig { color: rgba(255,255,255,0.45); font-size: 0.85rem; }
   #pw { display: none; margin-top: 22px; }
+  .pw-wrap { position: relative; }
+  .pw-wrap input { padding-right: 54px; }
+  .eye { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 40px; height: 40px;
+         background: none; border: none; color: rgba(255,255,255,0.6); cursor: pointer; padding: 8px; margin: 0; }
+  .eye:hover { color: #fff; }
   input { width: 100%; background: none; border: 2px solid rgba(255,255,255,0.4); color: #fff;
           padding: 14px 16px; font-size: 1.1rem; outline: none; }
   button { margin-top: 14px; width: 100%; background: #fff; color: #000; border: none;
@@ -31,6 +38,11 @@
           font-size: 0.9rem; cursor: pointer; width: auto; margin: 0; font-weight: 600; }
   .btn2.danger { border-color: #FB5334; color: #FB5334; }
   .hide { display: none; }
+  select { background: #000; border: 1px solid rgba(255,255,255,0.4); color: #fff; padding: 10px 12px; font-size: 0.9rem; }
+  .bar { height: 3px; background: rgba(255,255,255,0.12); overflow: hidden; margin-top: 14px; }
+  .bar > div { width: 80px; height: 100%; background: #FB5334; animation: slide 1.1s ease-in-out infinite alternate; }
+  @keyframes slide { from { transform: translateX(-20px) } to { transform: translateX(560px) } }
+  .log { margin-top: 10px; font-size: 0.78rem; color: rgba(255,255,255,0.45); word-break: break-all; min-height: 1.2em; }
 </style>
 </head>
 <body>
@@ -45,19 +57,42 @@
       <button class="btn2" onclick="forget()">Forget</button></div>
     <div id="nets">Scanning…</div>
     <div id="pw">
-      <input id="psk" type="password" placeholder="Wi-Fi password" />
+      <div class="pw-wrap">
+        <input id="psk" type="password" placeholder="Wi-Fi password" />
+        <button class="eye" onclick="toggleEye('psk', this)" aria-label="Show password"></button>
+      </div>
       <button onclick="connect()">Connect</button>
     </div>
     <div class="row" style="margin-top:14px">
       <button class="btn2" onclick="scan()">Rescan</button>
       <button class="btn2" onclick="toggleHidden()">Join hidden network</button>
+      <button class="btn2" onclick="kbd('show')">Keyboard</button>
     </div>
     <div id="hidden-form" class="hide" style="margin-top:14px">
       <input id="hidden-ssid" placeholder="Network name (SSID)" style="margin-bottom:10px" />
-      <input id="hidden-psk" type="password" placeholder="Password (leave empty if open)" />
+      <div class="pw-wrap">
+        <input id="hidden-psk" type="password" placeholder="Password (leave empty if open)" />
+        <button class="eye" onclick="toggleEye('hidden-psk', this)" aria-label="Show password"></button>
+      </div>
       <button onclick="connectHidden()">Connect to hidden network</button>
     </div>
     <div class="status" id="status"></div>
+
+    <div class="section">
+      <h2>Display &amp; input</h2>
+      <div class="row"><span>On-screen keyboard</span>
+        <span><button class="btn2" onclick="kbd('show')">Show</button>
+        <button class="btn2" onclick="kbd('hide')">Hide</button></span></div>
+      <div class="row"><span>Display scaling<br><small style="color:rgba(255,255,255,0.4)">The screen restarts briefly to apply.</small></span>
+        <select id="scale-sel" onchange="setScale(this.value)">
+          <option value="auto">Auto</option>
+          <option value="1">100%</option>
+          <option value="1.25">125%</option>
+          <option value="1.5">150%</option>
+          <option value="1.75">175%</option>
+          <option value="2">200%</option>
+        </select></div>
+    </div>
 
     <div class="section">
       <h2>System</h2>
@@ -68,7 +103,9 @@
         <button class="btn2 danger" onclick="showDisks()">Install…</button>
       </div>
       <div id="disk-list"></div>
+      <div id="install-bar" class="bar hide"><div></div></div>
       <div id="install-progress" class="status"></div>
+      <div id="install-log" class="log"></div>
     </div>
 
     <div class="section">
@@ -81,6 +118,15 @@
     </div>
   </div>
 <script>
+const EYE = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="2.6"/></svg>';
+const EYE_OFF = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="2.6"/><path d="M4 4l16 16"/></svg>';
+const LOCK = '<svg width="13" height="15" viewBox="0 0 24 28" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="12" width="18" height="13" rx="1"/><path d="M7 12V8a5 5 0 0 1 10 0v4"/></svg>';
+document.querySelectorAll(".eye").forEach((b) => (b.innerHTML = EYE));
+function toggleEye(id, btn) {
+  const i = document.getElementById(id);
+  i.type = i.type === "password" ? "text" : "password";
+  btn.innerHTML = i.type === "password" ? EYE : EYE_OFF;
+}
 let chosen = null;
 async function scan() {
   try {
@@ -90,7 +136,7 @@ async function scan() {
     nets.sort((a, b) => b.signal - a.signal).forEach((n) => {
       const d = document.createElement("div");
       d.className = "net";
-      d.innerHTML = `<span>${n.ssid}${n.security ? " 🔒" : ""}</span><span class="sig">${n.signal}%</span>`;
+      d.innerHTML = `<span class="name">${n.ssid}${n.security ? LOCK : ""}</span><span class="sig">${n.signal}%</span>`;
       d.onclick = () => { chosen = n.ssid; document.getElementById("pw").style.display = "block";
         document.getElementById("status").textContent = "Network: " + n.ssid; document.getElementById("psk").focus(); };
       el.appendChild(d);
@@ -98,24 +144,26 @@ async function scan() {
     if (!nets.length) el.textContent = "No networks found — plug in ethernet or retry.";
   } catch { document.getElementById("nets").textContent = "Scanning…"; }
 }
-async function connect() {
+async function doConnect(payload) {
   document.getElementById("status").textContent = "Connecting…";
-  const r = await (await fetch("/cgi-bin/connect", { method: "POST",
-    body: JSON.stringify({ ssid: chosen, psk: document.getElementById("psk").value }) })).json();
+  const r = await (await fetch("/cgi-bin/connect", { method: "POST", body: JSON.stringify(payload) })).json();
   document.getElementById("status").textContent = r.ok
-    ? "Connected — starting Airtime…" : "Wrong password or connection failed — try again.";
+    ? "Connected — starting Airtime…" : (r.error || "Connection failed — try again.");
   if (r.ok) setTimeout(() => location.href = "https://airtime.dotcorr.com/tv", 2500);
 }
-scan(); setInterval(scan, 8000);
+function connect() { doConnect({ ssid: chosen, psk: document.getElementById("psk").value }); }
+function connectHidden() {
+  doConnect({ ssid: document.getElementById("hidden-ssid").value,
+    psk: document.getElementById("hidden-psk").value, hidden: true });
+}
 function toggleHidden() { document.getElementById("hidden-form").classList.toggle("hide"); }
-async function connectHidden() {
-  document.getElementById("status").textContent = "Connecting\u2026";
-  const r = await (await fetch("/cgi-bin/connect", { method: "POST",
-    body: JSON.stringify({ ssid: document.getElementById("hidden-ssid").value,
-      psk: document.getElementById("hidden-psk").value, hidden: true }) })).json();
-  document.getElementById("status").textContent = r.ok
-    ? "Connected \u2014 starting Airtime\u2026" : "Could not join \u2014 check name and password.";
-  if (r.ok) setTimeout(() => location.href = "https://airtime.dotcorr.com/tv", 2500);
+scan(); setInterval(scan, 8000);
+async function kbd(action) {
+  await fetch("/cgi-bin/keyboard", { method: "POST", body: JSON.stringify({ action }) }).catch(() => {});
+}
+function setScale(v) {
+  document.getElementById("status").textContent = "Applying — the screen restarts briefly…";
+  fetch("/cgi-bin/display-scale", { method: "POST", body: JSON.stringify({ scale: v }) }).catch(() => {});
 }
 let currentSsid = null;
 async function refreshCurrent() {
@@ -174,10 +222,19 @@ async function install(dev, btn) {
   const r = await (await fetch("/cgi-bin/install", { method: "POST", body: JSON.stringify({ disk: dev }) })).json();
   if (!r.ok) { document.getElementById("install-progress").textContent = r.error; return; }
   document.getElementById("disk-list").innerHTML = "";
+  document.getElementById("install-bar").classList.remove("hide");
+  document.getElementById("install-progress").textContent = "Installing…";
   const poll = setInterval(async () => {
     const st = await (await fetch("/cgi-bin/install-status")).json();
-    document.getElementById("install-progress").textContent = st.done
-      ? "Installed. Remove the USB stick and restart this computer." : "Installing… " + st.log.slice(-120);
+    document.getElementById("install-log").textContent = st.log.slice(-140);
+    if (st.done) {
+      document.getElementById("install-bar").classList.add("hide");
+      document.getElementById("install-progress").textContent = "Installed. Remove the USB stick and restart this computer.";
+      document.getElementById("install-log").textContent = "";
+    } else if (!st.running) {
+      document.getElementById("install-bar").classList.add("hide");
+      document.getElementById("install-progress").textContent = "Install failed — details below.";
+    }
     if (st.done || !st.running) clearInterval(poll);
   }, 3000);
 }

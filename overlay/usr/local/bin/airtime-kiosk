@@ -22,7 +22,25 @@ pgrep -f airtime-settingsd >/dev/null || /usr/local/bin/airtime-settingsd &
 chromium_flags="--kiosk --no-first-run --noerrdialogs --disable-infobars \
   --disable-session-crashed-bubble --autoplay-policy=no-user-gesture-required \
   --enable-features=VaapiVideoDecoder --ozone-platform=wayland \
-  --disable-pinch --overscroll-history-navigation=0"
+  --disable-pinch --overscroll-history-navigation=0 \
+  --default-background-color=000000"
+
+# dynamic display scaling: high-DPI panels render tiny at 1x. Auto from the
+# panel's native width, overridable from settings (/etc/airtime-scale).
+scale=$(cat /etc/airtime-scale 2>/dev/null)
+if [ -z "$scale" ] || [ "$scale" = "auto" ]; then
+  w=$(cat /sys/class/drm/card*-*/modes 2>/dev/null | head -1 | cut -dx -f1)
+  case "$w" in
+    ''|*[!0-9]*) scale=1 ;;
+    *)
+      if [ "$w" -ge 3600 ]; then scale=2
+      elif [ "$w" -ge 2500 ]; then scale=1.75
+      elif [ "$w" -ge 2200 ]; then scale=1.4
+      else scale=1; fi
+      ;;
+  esac
+fi
+[ "$scale" != "1" ] && chromium_flags="$chromium_flags --force-device-scale-factor=$scale"
 
 # VMs have no real GPU: force cage's pixman renderer (the GL-on-llvmpipe path
 # stalls frame presentation under emulation), run Chromium fully in software,
@@ -53,13 +71,10 @@ while true; do
   # to the Wi-Fi settings page itself when the network never comes up.
   boot="$SETTINGS_URL/boot.html#$APP_URL|$SETTINGS_URL"
   started=$(date +%s)
-  # wvkbd only if a touchscreen exists
-  if grep -qi touch /proc/bus/input/devices 2>/dev/null; then
-    cage -- sh -c "wvkbd-mobintl -L 220 --hidden & chromium $chromium_flags '$boot'" \
-      >>/tmp/kiosk.log 2>&1
-  else
-    cage -- chromium $chromium_flags "$boot" >>/tmp/kiosk.log 2>&1
-  fi
+  # virtual keyboard always available (hidden until asked for from settings,
+  # or on touch devices where it's the only way to type)
+  cage -- sh -c "wvkbd-mobintl -L 220 --hidden & chromium $chromium_flags '$boot'" \
+    >>/tmp/kiosk.log 2>&1
   # A session that dies within seconds means the compositor can't drive the
   # display adapter at all — tell the human instead of failing silently.
   if [ $(( $(date +%s) - started )) -lt 8 ]; then

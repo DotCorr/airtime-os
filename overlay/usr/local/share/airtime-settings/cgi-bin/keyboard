@@ -1,0 +1,10 @@
+#!/bin/sh
+echo "Content-Type: application/json"
+echo "Access-Control-Allow-Origin: *"
+echo
+read -r body
+case "$body" in
+  *show*) pkill -USR2 -f wvkbd && echo '{"ok":true,"state":"shown"}' || echo '{"ok":false,"error":"keyboard not running"}' ;;
+  *hide*) pkill -USR1 -f wvkbd && echo '{"ok":true,"state":"hidden"}' || echo '{"ok":false,"error":"keyboard not running"}' ;;
+  *) echo '{"ok":false,"error":"action must be show or hide"}' ;;
+esac

@@ -9,12 +9,13 @@ hidden=$(echo "$body" | sed -n 's/.*"hidden":\(true\|false\).*/\1/p')
 extra=""
 [ "$hidden" = "true" ] && extra="hidden yes"
 if [ -n "$psk" ]; then
-  out=$(nmcli dev wifi connect "$ssid" password "$psk" $extra 2>&1)
+  out=$(nmcli --wait 30 dev wifi connect "$ssid" password "$psk" $extra 2>&1)
 else
-  out=$(nmcli dev wifi connect "$ssid" $extra 2>&1)
+  out=$(nmcli --wait 30 dev wifi connect "$ssid" $extra 2>&1)
 fi
 if echo "$out" | grep -q successfully; then
   echo '{"ok":true}'
 else
-  echo '{"ok":false}'
+  err=$(echo "$out" | tail -1 | tr -d '"' | cut -c1-140)
+  printf '{"ok":false,"error":"%s"}' "$err"
 fi

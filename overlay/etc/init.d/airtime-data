@@ -20,7 +20,7 @@ start() {
 	# ensure a data partition entry exists after the ISO's own entries
 	entries=$(sfdisk -d "$bootdev" 2>/dev/null | grep -c '^/dev/') || return 0
 	if [ "$entries" -lt 3 ]; then
-		echo ',,L' | sfdisk --append --no-reread --no-tell-kernel "$bootdev" 2>/dev/null || return 0
+		echo ',,L' | sfdisk --append --no-reread --no-tell-kernel "$bootdev" >/dev/null 2>&1 || return 0
 	fi
 	# last table entry = our data region (runs to the end of the stick)
 	startsec=$(sfdisk -d "$bootdev" 2>/dev/null | grep '^/dev/' | tail -1 | sed -n 's/.*start= *\([0-9]*\).*/\1/p')

@@ -16,9 +16,6 @@ export WLR_NO_HARDWARE_CURSORS=1
 SETTINGS_URL="http://localhost:8800"
 APP_URL="$(cat /etc/airtime/screen.conf 2>/dev/null || echo 'https://airtime.dotcorr.com/tv')"
 
-# local settings daemon (Wi-Fi setup UI)
-pgrep -f airtime-settingsd >/dev/null || /usr/local/bin/airtime-settingsd &
-
 chromium_flags="--kiosk --no-first-run --noerrdialogs --disable-infobars \
   --disable-session-crashed-bubble --autoplay-policy=no-user-gesture-required \
   --enable-features=VaapiVideoDecoder --ozone-platform=wayland \

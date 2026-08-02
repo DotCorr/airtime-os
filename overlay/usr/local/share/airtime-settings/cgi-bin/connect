@@ -8,6 +8,10 @@ psk=$(echo "$body" | sed -n 's/.*"psk":"\([^"]*\)".*/\1/p')
 hidden=$(echo "$body" | sed -n 's/.*"hidden":\(true\|false\).*/\1/p')
 extra=""
 [ "$hidden" = "true" ] && extra="hidden yes"
+# a stale profile for this SSID (e.g. from an earlier failed attempt) makes NM
+# ignore the freshly typed password and fail with "Secrets were required" —
+# always start from a clean profile
+nmcli connection delete id "$ssid" >/dev/null 2>&1
 if [ -n "$psk" ]; then
   out=$(nmcli --wait 30 dev wifi connect "$ssid" password "$psk" $extra 2>&1)
 else

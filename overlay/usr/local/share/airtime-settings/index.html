@@ -161,9 +161,15 @@ async function scan() {
 }
 async function doConnect(payload) {
   document.getElementById("status").textContent = "Connecting…";
-  const r = await (await fetch("/cgi-bin/connect", { method: "POST", body: JSON.stringify(payload) })).json();
-  document.getElementById("status").textContent = r.ok
-    ? "Connected — starting Airtime…" : (r.error || "Connection failed — try again.");
+  const body = "ssid=" + encodeURIComponent(payload.ssid || "") +
+    "&psk=" + encodeURIComponent(payload.psk || "") +
+    "&hidden=" + (payload.hidden ? "1" : "0");
+  const r = await (await fetch("/cgi-bin/connect", { method: "POST", body })).json();
+  let msg = r.ok ? "Connected — starting Airtime…" : (r.error || "Connection failed — try again.");
+  if (!r.ok && r.psk_len === 0 && (payload.psk || "").length > 0) {
+    msg += " — the password did not reach the system; please report this";
+  }
+  document.getElementById("status").textContent = msg;
   if (r.ok) setTimeout(() => location.href = "https://airtime.dotcorr.com/tv", 2500);
 }
 function connect() { doConnect({ ssid: chosen, psk: document.getElementById("psk").value }); }
@@ -189,7 +195,7 @@ async function refreshCurrent() {
 refreshCurrent(); setInterval(refreshCurrent, 8000);
 async function forget() {
   if (!currentSsid) return;
-  await fetch("/cgi-bin/forget", { method: "POST", body: JSON.stringify({ ssid: currentSsid }) });
+  await fetch("/cgi-bin/forget", { method: "POST", body: "ssid=" + encodeURIComponent(currentSsid) });
   document.getElementById("status").textContent = "Network forgotten.";
   refreshCurrent();
 }

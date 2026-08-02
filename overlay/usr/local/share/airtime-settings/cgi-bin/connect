@@ -3,23 +3,46 @@ echo "Content-Type: application/json"
 echo "Access-Control-Allow-Origin: *"
 echo
 read -r body
-ssid=$(echo "$body" | sed -n 's/.*"ssid":"\([^"]*\)".*/\1/p')
-psk=$(echo "$body" | sed -n 's/.*"psk":"\([^"]*\)".*/\1/p')
-hidden=$(echo "$body" | sed -n 's/.*"hidden":\(true\|false\).*/\1/p')
-extra=""
-[ "$hidden" = "true" ] && extra="hidden yes"
-# a stale profile for this SSID (e.g. from an earlier failed attempt) makes NM
-# ignore the freshly typed password and fail with "Secrets were required" —
-# always start from a clean profile
-nmcli connection delete id "$ssid" >/dev/null 2>&1
-if [ -n "$psk" ]; then
-  out=$(nmcli --wait 30 dev wifi connect "$ssid" password "$psk" $extra 2>&1)
-else
-  out=$(nmcli --wait 30 dev wifi connect "$ssid" $extra 2>&1)
+# URL-encoded fields (ssid=...&psk=...&hidden=1) — survives ANY password chars
+dec() { busybox-extras httpd -d "$1" 2>/dev/null || printf '%s' "$1"; }
+val() { printf '%s\n' "$body" | tr '&' '\n' | sed -n "s/^$1=//p" | head -1; }
+ssid=$(dec "$(val ssid)")
+psk=$(dec "$(val psk)")
+hidden=$(val hidden)
+[ -z "$ssid" ] && { echo '{"ok":false,"error":"no ssid"}'; exit 0; }
+hf=""
+[ "$hidden" = "1" ] && hf="hidden yes"
+
+try_std() {
+  nmcli connection delete id "$ssid" >/dev/null 2>&1
+  if [ -n "$psk" ]; then
+    nmcli --wait 30 dev wifi connect "$ssid" password "$psk" $hf 2>&1
+  else
+    nmcli --wait 30 dev wifi connect "$ssid" $hf 2>&1
+  fi
+}
+try_keymgmt() {
+  hidden_prop=""
+  [ "$hidden" = "1" ] && hidden_prop="802-11-wireless.hidden yes"
+  nmcli connection delete id "$ssid" >/dev/null 2>&1
+  nmcli connection add type wifi con-name "$ssid" ssid "$ssid" \
+    wifi-sec.key-mgmt "$1" wifi-sec.psk "$psk" $hidden_prop >/dev/null 2>&1
+  nmcli --wait 30 connection up id "$ssid" 2>&1
+}
+
+out=$(try_std)
+if ! echo "$out" | grep -q successfully; then
+  # router wants the secret in a different slot (WPA2-PSK vs WPA3-SAE)
+  if echo "$out" | grep -qi "secrets were required" && [ -n "$psk" ]; then
+    out=$(try_keymgmt wpa-psk)
+    echo "$out" | grep -q successfully || out=$(try_keymgmt sae)
+  fi
 fi
+
 if echo "$out" | grep -q successfully; then
   echo '{"ok":true}'
 else
+  nmcli connection delete id "$ssid" >/dev/null 2>&1
   err=$(echo "$out" | tail -1 | tr -d '"' | cut -c1-140)
-  printf '{"ok":false,"error":"%s"}' "$err"
+  printf '{"ok":false,"error":"%s","psk_len":%s}' "$err" "${#psk}"
 fi

@@ -36,3 +36,4 @@ losetup
 wpa_supplicant
 dosfstools
 efibootmgr
+acpid

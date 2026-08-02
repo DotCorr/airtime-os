@@ -1,0 +1,10 @@
+#!/bin/sh
+echo "Content-Type: application/json"
+echo "Access-Control-Allow-Origin: *"
+echo
+if [ -f /tmp/airtime-power-pressed ]; then
+  rm -f /tmp/airtime-power-pressed
+  echo '{"pressed":true}'
+else
+  echo '{"pressed":false}'
+fi

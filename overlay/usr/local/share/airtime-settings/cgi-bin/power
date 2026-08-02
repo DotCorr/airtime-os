@@ -1,0 +1,11 @@
+#!/bin/sh
+echo "Content-Type: application/json"
+echo "Access-Control-Allow-Origin: *"
+echo
+read -r body
+case "$body" in
+  *poweroff*) ( sleep 1; poweroff ) >/dev/null 2>&1 & echo '{"ok":true}' ;;
+  *reboot*)   ( sleep 1; reboot )   >/dev/null 2>&1 & echo '{"ok":true}' ;;
+  *sleep*)    ( sleep 1; echo mem > /sys/power/state ) >/dev/null 2>&1 & echo '{"ok":true}' ;;
+  *) echo '{"ok":false,"error":"action must be poweroff, reboot or sleep"}' ;;
+esac

@@ -45,6 +45,7 @@ rc-update add airtime-banner boot
 rc-update add airtime-data boot
 rc-update add airtime-settingsd default
 rc-update add crond default
+rc-update add acpid default
 
 # NM connection profiles must be root-only or NM ignores them
 chmod 600 /etc/NetworkManager/system-connections/wired.nmconnection

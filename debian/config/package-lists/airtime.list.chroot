@@ -30,3 +30,4 @@ grub-pc-bin
 rsync
 sudo
 wlr-randr
+xwayland

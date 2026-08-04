@@ -5,7 +5,7 @@
 set -e
 latest=$(wget -qO- https://api.github.com/repos/DotCorr/airtime-os/releases/latest | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p')
 [ -n "$latest" ] || { echo "cannot reach release feed"; exit 1; }
-cur=$(cat /etc/airtime-release 2>/dev/null || echo dev)
+cur=$(cat /etc/airtime-version 2>/dev/null || echo dev)
 echo "current: $cur  latest: $latest"
 wget -qO /tmp/airtime-overlay.tar.gz \
   "https://github.com/DotCorr/airtime-os/releases/download/$latest/airtimeos-overlay.tar.gz"

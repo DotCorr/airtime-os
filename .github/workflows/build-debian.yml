@@ -14,7 +14,12 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Stamp release version
-        run: echo "debian-v0.2.0+$(git rev-parse --short HEAD) $(date -u +%Y-%m-%d)" > overlay/etc/airtime-release
+        run: |
+          # what a user sees — the base distro is an implementation detail
+          echo "AirtimeOS 0.2.0 ($(date -u +%Y-%m-%d))" > overlay/etc/airtime-release
+          # machine-readable, used by the updater to compare against release tags
+          echo "v0.2.0" > overlay/etc/airtime-version
+          git rev-parse --short HEAD > overlay/etc/airtime-build
 
       - name: Build live ISO (live-build in Debian container)
         run: |
@@ -27,7 +32,7 @@ jobs:
             cp -a /os/overlay/usr/local/bin/airtime-kiosk config/includes.chroot/usr/local/bin/
             cp -a /os/overlay/usr/local/bin/airtime-settingsd config/includes.chroot/usr/local/bin/
             cp -a /os/overlay/usr/local/share/airtime-settings config/includes.chroot/usr/local/share/
-            cp -a /os/overlay/etc/airtime-release config/includes.chroot/etc/ 2>/dev/null || true
+            cp -a /os/overlay/etc/airtime-release /os/overlay/etc/airtime-version /os/overlay/etc/airtime-build config/includes.chroot/etc/ 2>/dev/null || true
             mkdir -p config/includes.chroot/etc/chromium/policies/managed
             cp -a /os/overlay/etc/chromium/policies/managed/airtime.json config/includes.chroot/etc/chromium/policies/managed/
             chmod +x config/includes.chroot/usr/local/bin/* config/includes.chroot/usr/local/share/airtime-settings/cgi-bin/*

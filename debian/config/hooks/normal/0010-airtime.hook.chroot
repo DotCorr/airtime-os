@@ -4,6 +4,12 @@ set -e
 # kiosk user (uid 1000 so XDG_RUNTIME_DIR=/run/user/1000 matches the unit)
 id kiosk >/dev/null 2>&1 || useradd -m -u 1000 -s /bin/bash -G video,input,audio,render kiosk
 
+# identity: nothing on this machine should say "debian" to a user
+echo airtimeos > /etc/hostname
+hostnamectl set-hostname airtimeos 2>/dev/null || true
+: > /etc/motd
+sed -i 's/^PRETTY_NAME=.*/PRETTY_NAME="AirtimeOS"/; s/^NAME=.*/NAME="AirtimeOS"/; s/^ID=.*/ID=airtimeos/; s/^HOME_URL=.*/HOME_URL="https:\/\/airtime.dotcorr.com"/' /etc/os-release 2>/dev/null || true
+
 # branded boot splash, no text
 plymouth-set-default-theme airtime
 

@@ -2,7 +2,7 @@
 # Daily auto-update (disk installs; user can turn it off in settings)
 [ -f /etc/airtime-noautoupdate ] && exit 0
 grep -q ' / tmpfs ' /proc/mounts && exit 0
-cur=$(cat /etc/airtime-release 2>/dev/null || echo dev)
+cur=$(cat /etc/airtime-version 2>/dev/null || echo dev)
 latest=$(wget -qO- https://api.github.com/repos/DotCorr/airtime-os/releases/latest 2>/dev/null | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p')
 [ -n "$latest" ] && [ "$latest" != "${cur%% *}" ] && /usr/local/bin/airtime-update >> /var/log/airtime-update.log 2>&1
 exit 0

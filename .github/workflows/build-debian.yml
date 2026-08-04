@@ -24,7 +24,7 @@ jobs:
       - name: Build live ISO (live-build in Debian container)
         run: |
           sudo modprobe loop || true
-          docker run --privileged --rm -v "$PWD":/os -w /os/debian debian:bookworm bash -c '
+          docker run --privileged --rm -v "$PWD":/os -w /os/debian debian:trixie bash -c '
             set -eux
             apt-get update
             apt-get install -y --no-install-recommends live-build ca-certificates
@@ -37,7 +37,7 @@ jobs:
             cp -a /os/overlay/etc/chromium/policies/managed/airtime.json config/includes.chroot/etc/chromium/policies/managed/
             chmod +x config/includes.chroot/usr/local/bin/* config/includes.chroot/usr/local/share/airtime-settings/cgi-bin/*
             lb config \
-              --distribution bookworm \
+              --distribution trixie \
               --archive-areas "main contrib non-free non-free-firmware" \
               --binary-images iso-hybrid \
               --debian-installer none \

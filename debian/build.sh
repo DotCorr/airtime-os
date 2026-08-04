@@ -3,7 +3,7 @@
 # Runs live-build inside a privileged Debian container.
 set -eu
 cd "$(dirname "$0")"
-exec docker run --privileged --rm -v "$PWD/..:/os" -w /os/debian debian:bookworm bash -c '
+exec docker run --privileged --rm -v "$PWD/..:/os" -w /os/debian debian:trixie bash -c '
   set -eux
   apt-get update
   apt-get install -y --no-install-recommends live-build ca-certificates
@@ -15,7 +15,7 @@ exec docker run --privileged --rm -v "$PWD/..:/os" -w /os/debian debian:bookworm
   chmod +x config/includes.chroot/usr/local/bin/* config/includes.chroot/usr/local/share/airtime-settings/cgi-bin/*
   lb clean --purge || true
   lb config \
-    --distribution bookworm \
+    --distribution trixie \
     --archive-areas "main contrib non-free non-free-firmware" \
     --binary-images iso-hybrid \
     --debian-installer none \

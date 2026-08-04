@@ -31,4 +31,8 @@ systemctl mask systemd-ask-password-plymouth.service 2>/dev/null || true
 printf '[main]\nplugins=keyfile\n\n[ifupdown]\nmanaged=true\n' > /etc/NetworkManager/NetworkManager.conf
 
 # regenerate initramfs so plymouth + firmware are present at early boot
+# ship ALL firmware in the initramfs — GPU drivers load before the root
+# filesystem is mounted, so firmware that lives only on disk arrives too late
+echo 'FRAMEBUFFER=y' > /etc/initramfs-tools/conf.d/airtime-splash
+sed -i 's/^MODULES=.*/MODULES=most/' /etc/initramfs-tools/initramfs.conf
 update-initramfs -u -k all

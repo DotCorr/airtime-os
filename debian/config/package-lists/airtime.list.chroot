@@ -33,3 +33,8 @@ wlr-randr
 xwayland
 rfkill
 wireless-tools
+firmware-sof-signed
+firmware-mediatek
+firmware-intel-graphics
+intel-microcode
+amd64-microcode

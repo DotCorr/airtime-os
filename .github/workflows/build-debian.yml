@@ -1,4 +1,4 @@
-name: Build AirtimeOS (Debian base)
+name: Build AirtimeOS
 on:
   workflow_dispatch:
   push:
@@ -28,6 +28,8 @@ jobs:
             cp -a /os/overlay/usr/local/bin/airtime-settingsd config/includes.chroot/usr/local/bin/
             cp -a /os/overlay/usr/local/share/airtime-settings config/includes.chroot/usr/local/share/
             cp -a /os/overlay/etc/airtime-release config/includes.chroot/etc/ 2>/dev/null || true
+            mkdir -p config/includes.chroot/etc/chromium/policies/managed
+            cp -a /os/overlay/etc/chromium/policies/managed/airtime.json config/includes.chroot/etc/chromium/policies/managed/
             chmod +x config/includes.chroot/usr/local/bin/* config/includes.chroot/usr/local/share/airtime-settings/cgi-bin/*
             lb config \
               --distribution bookworm \
@@ -54,11 +56,16 @@ jobs:
             echo "=== live.cfg labels ==="; grep -hE "^label|^menuentry" config/bootloaders/*/live.cfg 2>/dev/null || true
             lb build
             mkdir -p /os/dist
-            mv live-image-amd64.hybrid.iso /os/dist/airtimeos-debian-x86_64.iso
+            mv live-image-amd64.hybrid.iso /os/dist/airtimeos-x86_64.iso
           '
           ls -lh dist/
+
+      - name: Overlay bundle (OS-level OTA payload)
+        run: tar -czf dist/airtimeos-overlay.tar.gz -C overlay .
 
       - name: Upload to release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload v0.1.0 dist/airtimeos-debian-x86_64.iso --clobber -R ${{ github.repository }}
+        run: |
+          gh release upload v0.1.0 dist/airtimeos-x86_64.iso --clobber -R ${{ github.repository }}
+          gh release upload v0.1.0 dist/airtimeos-overlay.tar.gz --clobber -R ${{ github.repository }}

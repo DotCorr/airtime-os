@@ -40,13 +40,19 @@ jobs:
               --iso-publisher Dotcorr \
               --iso-volume AIRTIMEOS \
               --bootappend-live "boot=live components quiet splash persistence noeject"
+            # keep live-build's generated kernel paths (versioned filenames);
+            # patch ONLY the menu behaviour and branding
             mkdir -p config/bootloaders
             cp -a /usr/share/live/build/bootloaders/isolinux config/bootloaders/ 2>/dev/null || true
             cp -a /usr/share/live/build/bootloaders/grub-pc config/bootloaders/ 2>/dev/null || true
-            cp /os/debian/bootloaders/isolinux.cfg config/bootloaders/isolinux/isolinux.cfg
-            cp /os/debian/bootloaders/grub.cfg config/bootloaders/grub-pc/grub.cfg
-            rm -f config/bootloaders/isolinux/menu.cfg config/bootloaders/isolinux/stdmenu.cfg config/bootloaders/isolinux/live.cfg
-            rm -f config/bootloaders/grub-pc/live.cfg config/bootloaders/grub-pc/config.cfg
+            echo "=== isolinux.cfg BEFORE ==="; cat config/bootloaders/isolinux/isolinux.cfg
+            echo "=== grub.cfg BEFORE ==="; cat config/bootloaders/grub-pc/grub.cfg
+            sed -i "s/^default vesamenu.c32/default live/; s/^prompt .*/prompt 0/; s/^timeout .*/timeout 1/" config/bootloaders/isolinux/isolinux.cfg
+            sed -i "1i set timeout=0\nset timeout_style=hidden\nset default=0" config/bootloaders/grub-pc/grub.cfg
+            sed -i "s/Live system/AirtimeOS/g" config/bootloaders/grub-pc/*.cfg config/bootloaders/isolinux/*.cfg 2>/dev/null || true
+            echo "=== isolinux.cfg AFTER ==="; cat config/bootloaders/isolinux/isolinux.cfg
+            echo "=== grub.cfg AFTER ==="; cat config/bootloaders/grub-pc/grub.cfg
+            echo "=== live.cfg labels ==="; grep -hE "^label|^menuentry" config/bootloaders/*/live.cfg 2>/dev/null || true
             lb build
             mkdir -p /os/dist
             mv live-image-amd64.hybrid.iso /os/dist/airtimeos-debian-x86_64.iso

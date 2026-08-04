@@ -14,6 +14,7 @@ network-manager
 wpasupplicant
 wireless-regdb
 iw
+cage
 chromium
 plymouth
 plymouth-themes
@@ -28,6 +29,8 @@ grub-efi-amd64-bin
 grub-pc-bin
 rsync
 sudo
+wlr-randr
+xwayland
 rfkill
 wireless-tools
 firmware-sof-signed
@@ -42,6 +45,3 @@ xserver-xorg-legacy
 xinit
 x11-xserver-utils
 unclutter
-matchbox-window-manager
-xserver-xorg-video-vesa
-xserver-xorg-video-fbdev

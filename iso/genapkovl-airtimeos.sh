@@ -11,6 +11,18 @@ trap cleanup EXIT
 mkdir -p "$tmp"/etc
 echo "$HOSTNAME" > "$tmp"/etc/hostname
 
+# silent init: openrc output goes nowhere regardless of which console the
+# kernel picked (no-serial machines fall back to the screen otherwise)
+cat > "$tmp"/etc/inittab << 'INITTAB'
+::sysinit:/bin/sh -c '/sbin/openrc sysinit >/dev/null 2>&1'
+::sysinit:/bin/sh -c '/sbin/openrc boot >/dev/null 2>&1'
+::wait:/bin/sh -c '/sbin/openrc default >/dev/null 2>&1'
+tty1::respawn:/sbin/agetty --autologin kiosk --noclear tty1 linux
+ttyS0::respawn:/sbin/getty -L 115200 ttyS0 vt100
+::shutdown:/bin/sh -c '/sbin/openrc shutdown >/dev/null 2>&1'
+::ctrlaltdel:/sbin/reboot
+INITTAB
+
 # live boot installs exactly what /etc/apk/world lists (from the ISO's own
 # package repo) — without this the kiosk stack ships on the ISO but never installs
 mkdir -p "$tmp"/etc/apk

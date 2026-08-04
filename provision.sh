@@ -31,6 +31,14 @@ for g in video input seat; do addgroup kiosk "$g" || true; done
 # autologin on tty1 → kiosk session
 sed -i 's|^tty1.*|tty1::respawn:/sbin/agetty --autologin kiosk --noclear tty1 linux|' /etc/inittab
 
+# silence openrc on whichever console the kernel picked (machines without a
+# serial port fall back to the screen; the customer never sees service logs)
+sed -i \
+  -e 's|^::sysinit:/sbin/openrc sysinit$|::sysinit:/bin/sh -c "/sbin/openrc sysinit >/dev/null 2>\&1"|' \
+  -e 's|^::sysinit:/sbin/openrc boot$|::sysinit:/bin/sh -c "/sbin/openrc boot >/dev/null 2>\&1"|' \
+  -e 's|^::wait:/sbin/openrc default$|::wait:/bin/sh -c "/sbin/openrc default >/dev/null 2>\&1"|' \
+  /etc/inittab
+
 # serial console (debugging in VMs / headless boards; no-op when absent)
 grep -q '^ttyS0' /etc/inittab || echo 'ttyS0::respawn:/sbin/getty -L 115200 ttyS0 vt100' >> /etc/inittab
 

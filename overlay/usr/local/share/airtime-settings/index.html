@@ -98,6 +98,7 @@
       <h2>Display &amp; input</h2>
       <div class="row"><span>On-screen keyboard</span>
         <button class="btn2" onclick="oskToggle()">Show / hide</button></div>
+      <div class="row"><span>Display</span><span id="disp-info">–</span></div>
       <div class="row"><span>Display scaling<br><small style="color:rgba(255,255,255,0.4)">The screen restarts briefly to apply.</small></span>
         <select id="scale-sel" onchange="setScale(this.value)">
           <option value="auto">Auto</option>
@@ -206,6 +207,8 @@ async function sysinfo() {
     sysMode = st.mode;
     document.getElementById("sys-ver").textContent = st.version;
     document.getElementById("sys-mode").textContent = st.mode === "live" ? "USB / live media" : "internal disk";
+    document.getElementById("disp-info").textContent =
+      (st.fb || "?") + " · panel " + (st.native || "?") + " · driver " + (st.gpu || "?");
     document.getElementById("install-row").classList.toggle("hide", st.mode !== "live");
     document.getElementById("upd-auto").textContent = st.autoupdate === "on" ? "On" : "Off";
     const chk = await (await fetch("/cgi-bin/update-check")).json();
@@ -274,13 +277,7 @@ if (window.top === window) {
   }, 10000);
 }
 
-// ---- content scaling: big panels render tiny at 1x; zoom the CONTENT ----
-(function () {
-  const manual = null; // settings page always auto-scales itself
-  const w = window.screen.width;
-  const z = w >= 2200 ? Math.min(2.5, w / 1500) : 1;
-  if (z !== 1) document.documentElement.style.zoom = String(z);
-})();
+// content renders at the panel's native scale — no artificial zoom
 
 // ---- built-in on-screen keyboard (no compositor tricks, just the page) ----
 let oskTarget = null;

@@ -20,7 +20,7 @@ chromium_flags="--kiosk --no-first-run --noerrdialogs --disable-infobars \
   --disable-session-crashed-bubble --autoplay-policy=no-user-gesture-required \
   --enable-features=VaapiVideoDecoder --ozone-platform=wayland \
   --disable-pinch --overscroll-history-navigation=0 \
-  --default-background-color=000000"
+  --default-background-color=FF000000"
 
 # VMs have no real GPU: force cage's pixman renderer (the GL-on-llvmpipe path
 # stalls frame presentation under emulation), run Chromium fully in software,

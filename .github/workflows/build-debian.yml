@@ -61,7 +61,9 @@ jobs:
           ls -lh dist/
 
       - name: Overlay bundle (OS-level OTA payload)
-        run: tar -czf dist/airtimeos-overlay.tar.gz -C overlay .
+        run: |
+          sudo chown -R "$USER" dist
+          tar -czf dist/airtimeos-overlay.tar.gz -C overlay .
 
       - name: Upload to release
         env:

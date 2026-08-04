@@ -1,0 +1,47 @@
+{
+  "_comment": "A public ad screen must never show browser UI. These managed policies pre-answer every permission Chromium would otherwise prompt for, and confine the kiosk to Airtime origins.",
+
+  "DefaultGeolocationSetting": 2,
+  "DefaultNotificationsSetting": 2,
+  "DefaultSensorsSetting": 2,
+  "DefaultPopupsSetting": 2,
+  "DefaultWebBluetoothGuardSetting": 2,
+  "DefaultWebUsbGuardSetting": 2,
+  "DefaultSerialGuardSetting": 2,
+  "DefaultFileSystemReadGuardSetting": 2,
+  "DefaultFileSystemWriteGuardSetting": 2,
+  "DefaultWebHidGuardSetting": 2,
+  "DefaultWindowManagementSetting": 2,
+  "DefaultLocalFontsSetting": 2,
+  "DefaultClipboardSetting": 2,
+  "AudioCaptureAllowed": false,
+  "VideoCaptureAllowed": false,
+  "ScreenCaptureAllowed": false,
+
+  "URLBlocklist": ["*"],
+  "URLAllowlist": [
+    "https://airtime.dotcorr.com",
+    "http://localhost:8800",
+    "http://127.0.0.1:8800",
+    "https://fonts.googleapis.com",
+    "https://fonts.gstatic.com",
+    "about:blank"
+  ],
+
+  "PromptForDownloadLocation": false,
+  "DownloadRestrictions": 3,
+  "PasswordManagerEnabled": false,
+  "AutofillAddressEnabled": false,
+  "AutofillCreditCardEnabled": false,
+  "TranslateEnabled": false,
+  "SearchSuggestEnabled": false,
+  "SpellcheckEnabled": false,
+  "SyncDisabled": true,
+  "BrowserSignin": 0,
+  "MetricsReportingEnabled": false,
+  "DefaultBrowserSettingEnabled": false,
+  "ShowHomeButton": false,
+  "BookmarkBarEnabled": false,
+  "PrintingEnabled": false,
+  "DeveloperToolsAvailability": 2
+}

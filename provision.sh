@@ -9,7 +9,7 @@ printf '127.0.0.1\tlocalhost airtimeos\n::1\t\tlocalhost airtimeos\n' > /etc/hos
 # silent, instant boot: no bootloader wait, kernel+service chatter goes to the
 # serial port (debug channel) instead of the screen; no console cursor or banners
 sed -i -e 's/^TIMEOUT .*/TIMEOUT 1/' \
-       -e '/^ *APPEND /s/$/ quiet loglevel=1 vt.global_cursor_default=0 console=tty1 console=ttyS0,115200/' \
+       -e '/^ *APPEND /s/$/ quiet loglevel=1 vt.global_cursor_default=0 splash/' \
   /boot/extlinux.conf 2>/dev/null || true
 : > /etc/motd
 : > /etc/issue
@@ -39,8 +39,10 @@ sed -i \
   -e 's|^::wait:/sbin/openrc default$|::wait:/bin/sh -c "/sbin/openrc default >/dev/null 2>\&1"|' \
   /etc/inittab
 
-# serial console (debugging in VMs / headless boards; no-op when absent)
-grep -q '^ttyS0' /etc/inittab || echo 'ttyS0::respawn:/sbin/getty -L 115200 ttyS0 vt100' >> /etc/inittab
+# serial getty is attached at boot ONLY if the port exists (see
+# /etc/local.d/airtime-serial.start) — a getty on an absent ttyS0
+# respawn-loops and prints init noise onto the real screen
+sed -i '/^ttyS0::/d' /etc/inittab
 
 # udev coldplug so devices present before udev started still get events
 rc-update add udev-trigger sysinit

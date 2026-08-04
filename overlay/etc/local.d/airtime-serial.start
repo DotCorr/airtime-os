@@ -1,0 +1,9 @@
+#!/bin/sh
+# Attach a serial console only when the hardware actually has one (VMs, dev
+# boards). Real laptops/mini-PCs have no UART; a getty there respawn-loops and
+# prints init noise onto the customer's screen.
+[ -c /dev/ttyS0 ] || exit 0
+grep -q '^ttyS0::' /etc/inittab && exit 0
+echo 'ttyS0::respawn:/sbin/getty -L 115200 ttyS0 vt100' >> /etc/inittab
+kill -HUP 1
+exit 0

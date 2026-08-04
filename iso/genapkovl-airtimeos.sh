@@ -18,7 +18,6 @@ cat > "$tmp"/etc/inittab << 'INITTAB'
 ::sysinit:/bin/sh -c '/sbin/openrc boot >/dev/null 2>&1'
 ::wait:/bin/sh -c '/sbin/openrc default >/dev/null 2>&1'
 tty1::respawn:/sbin/agetty --autologin kiosk --noclear tty1 linux
-ttyS0::respawn:/sbin/getty -L 115200 ttyS0 vt100
 ::shutdown:/bin/sh -c '/sbin/openrc shutdown >/dev/null 2>&1'
 ::ctrlaltdel:/sbin/reboot
 INITTAB

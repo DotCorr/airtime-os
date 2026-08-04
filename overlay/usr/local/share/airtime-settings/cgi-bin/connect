@@ -5,22 +5,38 @@ echo "Access-Control-Allow-Private-Network: true"
 echo "Access-Control-Allow-Headers: *"
 echo
 read -r body
-# URL-encoded fields (ssid=...&psk=...&hidden=1) — survives ANY password chars
 dec() { "$(command -v busybox-extras || command -v busybox)" httpd -d "$1" 2>/dev/null || printf '%s' "$1"; }
 val() { printf '%s\n' "$body" | tr '&' '\n' | sed -n "s/^$1=//p" | head -1; }
 ssid=$(dec "$(val ssid)")
 psk=$(dec "$(val psk)")
 hidden=$(val hidden)
 [ -z "$ssid" ] && { echo '{"ok":false,"error":"no ssid"}'; exit 0; }
-hf=""
-[ "$hidden" = "1" ] && hf="hidden yes"
 
-# a soft- or hard-blocked radio is the most common reason a correct password
-# still fails, and nothing in the UI would ever have said so
+# radio on and unblocked — a blocked radio looks exactly like "no networks"
 rfkill unblock wifi >/dev/null 2>&1
 rfkill unblock all  >/dev/null 2>&1
 nmcli radio wifi on >/dev/null 2>&1
-nmcli device set "$(nmcli -t -f DEVICE,TYPE device | awk -F: '$2=="wifi"{print $1; exit}')" managed yes >/dev/null 2>&1
+
+# NetworkManager answers "network could not be found" from its *cached* scan.
+# Force fresh scans until the SSID appears (routers on 5 GHz and busy bands
+# routinely need more than one sweep).
+seen=no
+i=0
+while [ "$i" -lt 4 ]; do
+  nmcli device wifi rescan >/dev/null 2>&1
+  sleep 3
+  if nmcli -t -f SSID device wifi list 2>/dev/null | sed 's/\\://g' | grep -qxF "$ssid"; then
+    seen=yes
+    break
+  fi
+  i=$((i + 1))
+done
+visible=$(nmcli -t -f SSID device wifi list 2>/dev/null | grep -c .)
+
+# not in any scan → it is either hidden or out of range; try hidden explicitly
+hf=""
+[ "$hidden" = "1" ] && hf="hidden yes"
+[ "$seen" = "no" ] && hf="hidden yes"
 
 try_std() {
   nmcli connection delete id "$ssid" >/dev/null 2>&1
@@ -31,11 +47,11 @@ try_std() {
   fi
 }
 try_keymgmt() {
-  hidden_prop=""
-  [ "$hidden" = "1" ] && hidden_prop="802-11-wireless.hidden yes"
+  hp=""
+  [ -n "$hf" ] && hp="802-11-wireless.hidden yes"
   nmcli connection delete id "$ssid" >/dev/null 2>&1
   nmcli connection add type wifi con-name "$ssid" ssid "$ssid" \
-    wifi-sec.key-mgmt "$1" wifi-sec.psk "$psk" $hidden_prop >/dev/null 2>&1
+    wifi-sec.key-mgmt "$1" wifi-sec.psk "$psk" $hp >/dev/null 2>&1
   nmcli --wait 45 connection up id "$ssid" 2>&1
 }
 
@@ -49,25 +65,34 @@ fi
 
 if echo "$out" | grep -q successfully; then
   echo '{"ok":true}'
-else
-  nmcli connection delete id "$ssid" >/dev/null 2>&1
-  # the real message is the "Error:" line — the last line is just nmcli's
-  # "use journalctl" hint, which tells the venue owner nothing
-  err=$(printf '%s\n' "$out" | grep -m1 -i "^Error:" | sed 's/^[Ee]rror: *//')
-  [ -z "$err" ] && err=$(printf '%s\n' "$out" | grep -vi "^Hint:" | grep -v '^$' | tail -1)
-  # translate the usual causes into something a human can act on
-  case "$(printf '%s' "$err$(journalctl -u NetworkManager --no-pager -n 60 2>/dev/null | tail -20)" | tr 'A-Z' 'a-z')" in
-    *"secrets were required"*|*"psk"*|*"invalid password"*|*"802-11-wireless-security"*)
-      hint="Wrong Wi-Fi password." ;;
-    *"no network with ssid"*|*"not found"*)
-      hint="That network is not in range — move closer or use Rescan." ;;
-    *"timeout"*|*"timed out"*|*"association took too long"*)
-      hint="The router did not answer in time — try again, or move closer." ;;
-    *"blocked"*|*"rfkill"*)
-      hint="The Wi-Fi radio is switched off in hardware." ;;
-    *) hint="" ;;
-  esac
-  err=$(printf '%s' "$err" | tr -d '"\\' | cut -c1-160)
-  hint=$(printf '%s' "$hint" | tr -d '"\\')
-  printf '{"ok":false,"error":"%s","hint":"%s","psk_len":%s}' "$err" "$hint" "${#psk}"
+  exit 0
 fi
+
+nmcli connection delete id "$ssid" >/dev/null 2>&1
+err=$(printf '%s\n' "$out" | grep -m1 -i "^Error:" | sed 's/^[Ee]rror: *//')
+[ -z "$err" ] && err=$(printf '%s\n' "$out" | grep -vi "^Hint:" | grep -v '^$' | tail -1)
+
+# Match the ACTUAL error only — never the journal, and check "not found"
+# before password causes, or a missing network reads as a bad password.
+low=$(printf '%s' "$err" | tr 'A-Z' 'a-z')
+case "$low" in
+  *"could not be found"*|*"no network with ssid"*|*"not found"*)
+      if [ "$visible" -eq 0 ]; then
+        hint="This screen cannot see any Wi-Fi networks. Check the router is on and in range."
+      else
+        hint="That network was not found. It may be out of range, or on a band this machine cannot see. Try Rescan, or use Join hidden network."
+      fi ;;
+  *"secrets were required"*|*"invalid password"*|*"802-11-wireless-security"*|*"key management"*)
+      hint="Wrong Wi-Fi password." ;;
+  *"timeout"*|*"timed out"*|*"took too long"*)
+      hint="The router did not answer in time. Try again, or move the screen closer." ;;
+  *"blocked"*|*"rfkill"*)
+      hint="The Wi-Fi radio is switched off in hardware." ;;
+  *"no wi-fi device"*|*"no suitable device"*|*"device not found"*)
+      hint="No Wi-Fi adapter was detected on this machine." ;;
+  *) hint="" ;;
+esac
+err=$(printf '%s' "$err" | tr -d '"\\' | cut -c1-160)
+hint=$(printf '%s' "$hint" | tr -d '"\\')
+printf '{"ok":false,"error":"%s","hint":"%s","visible":%s,"psk_len":%s}' \
+  "$err" "$hint" "${visible:-0}" "${#psk}"

@@ -1,6 +1,8 @@
 #!/bin/sh
+rfkill unblock wifi >/dev/null 2>&1
+nmcli radio wifi on >/dev/null 2>&1
 echo "Content-Type: application/json"; echo
-nmcli -t -f SSID,SIGNAL,SECURITY dev wifi list 2>/dev/null | awk -F: '
+nmcli -t -f SSID,SIGNAL,SECURITY dev wifi list --rescan auto 2>/dev/null | awk -F: '
   BEGIN { print "[" ; first=1 }
   $1 != "" { if (!first) printf(","); first=0
     gsub(/"/, "\\\"", $1)

@@ -1,6 +1,8 @@
 #!/bin/sh
 echo "Content-Type: application/json"
 echo "Access-Control-Allow-Origin: *"
+echo "Access-Control-Allow-Private-Network: true"
+echo "Access-Control-Allow-Headers: *"
 echo
 read -r body
 dec() { "$(command -v busybox-extras || command -v busybox)" httpd -d "$1" 2>/dev/null || printf '%s' "$1"; }

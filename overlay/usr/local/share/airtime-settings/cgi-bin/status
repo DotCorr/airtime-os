@@ -1,6 +1,8 @@
 #!/bin/sh
 echo "Content-Type: application/json"
 echo "Access-Control-Allow-Origin: *"
+echo "Access-Control-Allow-Private-Network: true"
+echo "Access-Control-Allow-Headers: *"
 echo
 bat=null; ac=null
 for b in /sys/class/power_supply/BAT*; do [ -e "$b/capacity" ] && bat=$(cat "$b/capacity") && break; done

@@ -1,6 +1,8 @@
 #!/bin/sh
 echo "Content-Type: application/json"
 echo "Access-Control-Allow-Origin: *"
+echo "Access-Control-Allow-Private-Network: true"
+echo "Access-Control-Allow-Headers: *"
 echo
 if [ -f /etc/airtime-noautoupdate ]; then rm -f /etc/airtime-noautoupdate; echo '{"autoupdate":"on"}'
 else touch /etc/airtime-noautoupdate; echo '{"autoupdate":"off"}'; fi

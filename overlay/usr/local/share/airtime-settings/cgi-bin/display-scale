@@ -1,6 +1,8 @@
 #!/bin/sh
 echo "Content-Type: application/json"
 echo "Access-Control-Allow-Origin: *"
+echo "Access-Control-Allow-Private-Network: true"
+echo "Access-Control-Allow-Headers: *"
 echo
 read -r body
 scale=$(echo "$body" | sed -n 's/.*"scale":"\([0-9.]*\|auto\)".*/\1/p')

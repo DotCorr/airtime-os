@@ -1,6 +1,8 @@
 #!/bin/sh
 echo "Content-Type: application/json"
 echo "Access-Control-Allow-Origin: *"
+echo "Access-Control-Allow-Private-Network: true"
+echo "Access-Control-Allow-Headers: *"
 echo
 log=$(tail -c 600 /tmp/airtime-install.log 2>/dev/null | tr '"' "'" | tr '\n' ' ')
 running=false

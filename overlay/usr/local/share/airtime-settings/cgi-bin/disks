@@ -1,6 +1,8 @@
 #!/bin/sh
 echo "Content-Type: application/json"
 echo "Access-Control-Allow-Origin: *"
+echo "Access-Control-Allow-Private-Network: true"
+echo "Access-Control-Allow-Headers: *"
 echo
 boot=$(awk '$2 ~ /^\/media\// {print $1; exit}' /proc/mounts | sed 's/[0-9]*$//;s/p$//')
 lsblk -dnbo NAME,SIZE,MODEL,TYPE 2>/dev/null | awk -v boot="$boot" '

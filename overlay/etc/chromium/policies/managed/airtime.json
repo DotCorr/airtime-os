@@ -1,6 +1,5 @@
 {
   "_comment": "A public ad screen must never show browser UI. These managed policies pre-answer every permission Chromium would otherwise prompt for, and confine the kiosk to Airtime origins.",
-
   "DefaultGeolocationSetting": 2,
   "DefaultNotificationsSetting": 2,
   "DefaultSensorsSetting": 2,
@@ -17,8 +16,9 @@
   "AudioCaptureAllowed": false,
   "VideoCaptureAllowed": false,
   "ScreenCaptureAllowed": false,
-
-  "URLBlocklist": ["*"],
+  "URLBlocklist": [
+    "*"
+  ],
   "URLAllowlist": [
     "https://airtime.dotcorr.com",
     "http://localhost:8800",
@@ -27,7 +27,6 @@
     "https://fonts.gstatic.com",
     "about:blank"
   ],
-
   "PromptForDownloadLocation": false,
   "DownloadRestrictions": 3,
   "PasswordManagerEnabled": false,
@@ -43,5 +42,12 @@
   "ShowHomeButton": false,
   "BookmarkBarEnabled": false,
   "PrintingEnabled": false,
-  "DeveloperToolsAvailability": 2
+  "DeveloperToolsAvailability": 2,
+  "InsecurePrivateNetworkRequestsAllowedForUrls": [
+    "https://airtime.dotcorr.com"
+  ],
+  "LocalNetworkAccessAllowedForUrls": [
+    "https://airtime.dotcorr.com"
+  ],
+  "PrivateNetworkAccessRestrictionsEnabled": false
 }

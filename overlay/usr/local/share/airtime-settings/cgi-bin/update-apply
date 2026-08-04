@@ -1,6 +1,8 @@
 #!/bin/sh
 echo "Content-Type: application/json"
 echo "Access-Control-Allow-Origin: *"
+echo "Access-Control-Allow-Private-Network: true"
+echo "Access-Control-Allow-Headers: *"
 echo
 if grep -q ' / tmpfs ' /proc/mounts; then
   echo '{"ok":false,"error":"live media cannot update itself — install to disk first, or download the newest image"}'

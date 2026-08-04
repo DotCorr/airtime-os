@@ -16,5 +16,6 @@ uscale=$(cat /etc/airtime-scale 2>/dev/null || echo auto)
 drv=$(for d in /sys/class/drm/card*/device/driver; do [ -e "$d" ] && basename "$(readlink -f "$d")" && break; done)
 native=$(cat /sys/class/drm/card*-*/modes 2>/dev/null | head -1)
 fb=$(cat /sys/class/graphics/fb0/virtual_size 2>/dev/null | tr ',' 'x')
-printf '{"battery":%s,"ac":%s,"wifi":"%s","eth":"%s","connectivity":"%s","version":"%s","mode":"%s","autoupdate":"%s","scale":"%s","gpu":"%s","native":"%s","fb":"%s"}' \
-  "$bat" "$ac" "$wifi" "$eth" "$conn" "$ver" "$mode" "$auto" "$uscale" "${drv:-none}" "${native:-unknown}" "${fb:-unknown}"
+active=$(sed -n 's/.*current.*/&/p' /tmp/airtime-display.txt 2>/dev/null | head -1 | awk '{print $1}')
+printf '{"battery":%s,"ac":%s,"wifi":"%s","eth":"%s","connectivity":"%s","version":"%s","mode":"%s","autoupdate":"%s","scale":"%s","gpu":"%s","native":"%s","fb":"%s","active":"%s"}' \
+  "$bat" "$ac" "$wifi" "$eth" "$conn" "$ver" "$mode" "$auto" "$uscale" "${drv:-none}" "${native:-unknown}" "${fb:-unknown}" "${active:-unknown}"

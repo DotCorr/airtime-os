@@ -37,3 +37,4 @@ wpa_supplicant
 dosfstools
 efibootmgr
 acpid
+wlr-randr

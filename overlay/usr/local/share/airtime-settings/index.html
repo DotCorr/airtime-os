@@ -208,7 +208,7 @@ async function sysinfo() {
     document.getElementById("sys-ver").textContent = st.version;
     document.getElementById("sys-mode").textContent = st.mode === "live" ? "USB / live media" : "internal disk";
     document.getElementById("disp-info").textContent =
-      (st.fb || "?") + " · panel " + (st.native || "?") + " · driver " + (st.gpu || "?");
+      (st.active || st.fb || "?") + " · panel " + (st.native || "?") + " · driver " + (st.gpu || "?");
     document.getElementById("install-row").classList.toggle("hide", st.mode !== "live");
     document.getElementById("upd-auto").textContent = st.autoupdate === "on" ? "On" : "Off";
     const chk = await (await fetch("/cgi-bin/update-check")).json();

@@ -53,7 +53,18 @@ while true; do
   # to the Wi-Fi settings page itself when the network never comes up.
   boot="$SETTINGS_URL/boot.html#$APP_URL|$SETTINGS_URL"
   started=$(date +%s)
-  cage -- chromium $chromium_flags "$boot" >>/tmp/kiosk.log 2>&1
+  # Force the panel to its native (preferred) mode before painting. Without
+  # this the compositor accepts whatever the firmware left behind, which on
+  # laptops is often a low, wrong-aspect fallback: letterboxed and blurry.
+  cage -- sh -c '''
+    if command -v wlr-randr >/dev/null 2>&1; then
+      out=$(wlr-randr 2>/dev/null | awk "/^[A-Za-z0-9]/ {print \$1; exit}")
+      mode=$(wlr-randr 2>/dev/null | awk "/preferred/ {print \$1; exit}")
+      [ -n "$out" ] && [ -n "$mode" ] && wlr-randr --output "$out" --mode "$mode" >/dev/null 2>&1
+      wlr-randr >/tmp/airtime-display.txt 2>&1
+    fi
+    exec chromium '"$chromium_flags"' "'"$boot"'"
+  ''' >>/tmp/kiosk.log 2>&1
   # A session that dies within seconds means the compositor can't drive the
   # display adapter at all — tell the human instead of failing silently.
   if [ $(( $(date +%s) - started )) -lt 8 ]; then

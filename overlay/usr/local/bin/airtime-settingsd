@@ -1,4 +1,6 @@
 #!/bin/sh
 # Local settings server (Wi-Fi, install, updates) — root, loopback only.
 set -u
-exec busybox-extras httpd -f -p 127.0.0.1:8800 -h /usr/local/share/airtime-settings
+BB=busybox
+command -v busybox-extras >/dev/null 2>&1 && BB=busybox-extras
+exec "$BB" httpd -f -p 127.0.0.1:8800 -h /usr/local/share/airtime-settings

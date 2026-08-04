@@ -9,6 +9,9 @@ plymouth-set-default-theme airtime
 
 # our services
 systemctl enable airtime-kiosk.service airtime-settingsd.service
+# Ctrl+Alt+F2 gives a root console (ad screens have no keyboard; this is for
+# field diagnosis and is what makes a black screen debuggable)
+systemctl enable getty@tty2.service
 systemctl set-default graphical.target
 
 # nothing on the console but our splash

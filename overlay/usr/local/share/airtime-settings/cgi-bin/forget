@@ -3,7 +3,7 @@ echo "Content-Type: application/json"
 echo "Access-Control-Allow-Origin: *"
 echo
 read -r body
-dec() { busybox-extras httpd -d "$1" 2>/dev/null || printf '%s' "$1"; }
+dec() { "$(command -v busybox-extras || command -v busybox)" httpd -d "$1" 2>/dev/null || printf '%s' "$1"; }
 ssid=$(dec "$(printf '%s\n' "$body" | tr '&' '\n' | sed -n 's/^ssid=//p' | head -1)")
 [ -n "$ssid" ] && nmcli connection delete id "$ssid" >/dev/null 2>&1
 echo '{"ok":true}'

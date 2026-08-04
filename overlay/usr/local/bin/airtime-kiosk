@@ -4,9 +4,11 @@
 set -u
 
 # Wayland compositors need a runtime dir; there's no systemd-logind to make one.
-export XDG_RUNTIME_DIR="/tmp/xdg-runtime-$(id -u)"
-mkdir -p "$XDG_RUNTIME_DIR"
-chmod 700 "$XDG_RUNTIME_DIR"
+if [ -z "${XDG_RUNTIME_DIR:-}" ] || [ ! -d "${XDG_RUNTIME_DIR:-}" ]; then
+  export XDG_RUNTIME_DIR="/tmp/xdg-runtime-$(id -u)"
+  mkdir -p "$XDG_RUNTIME_DIR"
+  chmod 700 "$XDG_RUNTIME_DIR"
+fi
 
 # GPUs without 3D accel (VMs, some thin clients) fall back to software rendering;
 # wlroots refuses that without explicit opt-in. Hardware GL is still preferred.
@@ -41,7 +43,7 @@ while true; do
   if grep -qi hypervisor /proc/cpuinfo; then
     (
       sleep 240
-      if wget -qO- http://127.0.0.1:9222/json 2>/dev/null | grep -q '"title": ""'; then
+      if { command -v wget >/dev/null && wget -qO- http://127.0.0.1:9222/json 2>/dev/null || curl -s http://127.0.0.1:9222/json 2>/dev/null; } | grep -q '"title": ""'; then
         pkill chromium
       fi
     ) &

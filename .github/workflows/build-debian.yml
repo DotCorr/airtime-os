@@ -46,7 +46,7 @@ jobs:
             cp -a /usr/share/live/build/bootloaders/grub-pc config/bootloaders/ 2>/dev/null || true
             echo "=== isolinux.cfg BEFORE ==="; cat config/bootloaders/isolinux/isolinux.cfg
             echo "=== grub.cfg BEFORE ==="; cat config/bootloaders/grub-pc/grub.cfg
-            sed -i "s/^default vesamenu.c32/default live/; s/^prompt .*/prompt 0/; s/^timeout .*/timeout 1/" config/bootloaders/isolinux/isolinux.cfg
+            sed -i "s/^prompt .*/prompt 0/; s/^timeout .*/timeout 1/" config/bootloaders/isolinux/isolinux.cfg
             sed -i "1i set timeout=0\nset timeout_style=hidden\nset default=0" config/bootloaders/grub-pc/grub.cfg
             sed -i "s/Live system/AirtimeOS/g" config/bootloaders/grub-pc/*.cfg config/bootloaders/isolinux/*.cfg 2>/dev/null || true
             echo "=== isolinux.cfg AFTER ==="; cat config/bootloaders/isolinux/isolinux.cfg

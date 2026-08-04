@@ -13,7 +13,6 @@ fi
 # GPUs without 3D accel (VMs, some thin clients) fall back to software rendering;
 # wlroots refuses that without explicit opt-in. Hardware GL is still preferred.
 export WLR_RENDERER_ALLOW_SOFTWARE=1
-export WLR_NO_HARDWARE_CURSORS=1
 
 SETTINGS_URL="http://localhost:8800"
 APP_URL="$(cat /etc/airtime/screen.conf 2>/dev/null || echo 'https://airtime.dotcorr.com/tv')"
@@ -29,6 +28,9 @@ chromium_flags="--kiosk --no-first-run --noerrdialogs --disable-infobars \
 # and keep the CDP port open for headless debugging/screenshots.
 if grep -qi hypervisor /proc/cpuinfo; then
   export WLR_RENDERER=pixman
+  # no hardware cursor plane under emulation; on real GPUs the hardware cursor
+  # avoids full-screen repaints (which showed as stutter and artifacts)
+  export WLR_NO_HARDWARE_CURSORS=1
   chromium_flags="$chromium_flags --remote-debugging-port=9222 --remote-allow-origins=*"
   # Alpine ships a Chromium whose GPU process crash-loops on SwANGLE in VMs, so
   # there we must switch GL off entirely. Debian renders NOTHING with those same

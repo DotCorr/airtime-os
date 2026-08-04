@@ -99,7 +99,7 @@
       <div class="row"><span>On-screen keyboard</span>
         <button class="btn2" onclick="oskToggle()">Show / hide</button></div>
       <div class="row"><span>Display</span><span id="disp-info">–</span></div>
-      <div class="row"><span>Display scaling<br><small style="color:rgba(255,255,255,0.4)">The screen restarts briefly to apply.</small></span>
+      <div class="row"><span>Display scaling<br><small style="color:rgba(255,255,255,0.4)">Applies instantly.</small></span>
         <select id="scale-sel" onchange="setScale(this.value)">
           <option value="auto">Auto</option>
           <option value="1">100%</option>
@@ -181,8 +181,13 @@ function connectHidden() {
 function toggleHidden() { document.getElementById("hidden-form").classList.toggle("hide"); }
 scan(); setInterval(scan, 8000);
 function setScale(v) {
-  document.getElementById("status").textContent = "Applying — the screen restarts briefly…";
-  fetch("/cgi-bin/display-scale", { method: "POST", body: JSON.stringify({ scale: v }) }).catch(() => {});
+  // apply here, tell the kiosk page, then persist — no restart, no lost state
+  document.documentElement.style.zoom = v === "auto" ? "" : v;
+  try { window.parent.postMessage({ airtimeScale: v }, "*"); } catch (e) {}
+  document.getElementById("status").textContent = "Applied.";
+  fetch("/cgi-bin/display-scale", { method: "POST", body: JSON.stringify({ scale: v }) })
+    .then(() => { document.getElementById("status").textContent = "Saved."; })
+    .catch(() => { document.getElementById("status").textContent = "Could not save this setting."; });
 }
 let currentSsid = null;
 async function refreshCurrent() {
@@ -211,6 +216,8 @@ async function sysinfo() {
       (st.active || st.fb || "?") + " · panel " + (st.native || "?") + " · driver " + (st.gpu || "?");
     document.getElementById("install-row").classList.toggle("hide", st.mode !== "live");
     document.getElementById("upd-auto").textContent = st.autoupdate === "on" ? "On" : "Off";
+    var sel = document.getElementById("scale-sel");
+    if (sel && st.scale) { sel.value = st.scale; if (st.scale !== "auto") document.documentElement.style.zoom = st.scale; }
     const chk = await (await fetch("/cgi-bin/update-check")).json();
     document.getElementById("upd-latest").textContent = chk.latest;
     const newer = chk.latest !== "unknown" && chk.current.split(" ")[0] !== chk.latest;

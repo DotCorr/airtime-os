@@ -31,3 +31,5 @@ rsync
 sudo
 wlr-randr
 xwayland
+rfkill
+wireless-tools

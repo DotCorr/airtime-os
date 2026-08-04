@@ -15,12 +15,19 @@ hidden=$(val hidden)
 hf=""
 [ "$hidden" = "1" ] && hf="hidden yes"
 
+# a soft- or hard-blocked radio is the most common reason a correct password
+# still fails, and nothing in the UI would ever have said so
+rfkill unblock wifi >/dev/null 2>&1
+rfkill unblock all  >/dev/null 2>&1
+nmcli radio wifi on >/dev/null 2>&1
+nmcli device set "$(nmcli -t -f DEVICE,TYPE device | awk -F: '$2=="wifi"{print $1; exit}')" managed yes >/dev/null 2>&1
+
 try_std() {
   nmcli connection delete id "$ssid" >/dev/null 2>&1
   if [ -n "$psk" ]; then
-    nmcli --wait 30 dev wifi connect "$ssid" password "$psk" $hf 2>&1
+    nmcli --wait 45 dev wifi connect "$ssid" password "$psk" $hf 2>&1
   else
-    nmcli --wait 30 dev wifi connect "$ssid" $hf 2>&1
+    nmcli --wait 45 dev wifi connect "$ssid" $hf 2>&1
   fi
 }
 try_keymgmt() {
@@ -29,12 +36,11 @@ try_keymgmt() {
   nmcli connection delete id "$ssid" >/dev/null 2>&1
   nmcli connection add type wifi con-name "$ssid" ssid "$ssid" \
     wifi-sec.key-mgmt "$1" wifi-sec.psk "$psk" $hidden_prop >/dev/null 2>&1
-  nmcli --wait 30 connection up id "$ssid" 2>&1
+  nmcli --wait 45 connection up id "$ssid" 2>&1
 }
 
 out=$(try_std)
 if ! echo "$out" | grep -q successfully; then
-  # router wants the secret in a different slot (WPA2-PSK vs WPA3-SAE)
   if echo "$out" | grep -qi "secrets were required" && [ -n "$psk" ]; then
     out=$(try_keymgmt wpa-psk)
     echo "$out" | grep -q successfully || out=$(try_keymgmt sae)
@@ -45,6 +51,23 @@ if echo "$out" | grep -q successfully; then
   echo '{"ok":true}'
 else
   nmcli connection delete id "$ssid" >/dev/null 2>&1
-  err=$(echo "$out" | tail -1 | tr -d '"' | cut -c1-140)
-  printf '{"ok":false,"error":"%s","psk_len":%s}' "$err" "${#psk}"
+  # the real message is the "Error:" line — the last line is just nmcli's
+  # "use journalctl" hint, which tells the venue owner nothing
+  err=$(printf '%s\n' "$out" | grep -m1 -i "^Error:" | sed 's/^[Ee]rror: *//')
+  [ -z "$err" ] && err=$(printf '%s\n' "$out" | grep -vi "^Hint:" | grep -v '^$' | tail -1)
+  # translate the usual causes into something a human can act on
+  case "$(printf '%s' "$err$(journalctl -u NetworkManager --no-pager -n 60 2>/dev/null | tail -20)" | tr 'A-Z' 'a-z')" in
+    *"secrets were required"*|*"psk"*|*"invalid password"*|*"802-11-wireless-security"*)
+      hint="Wrong Wi-Fi password." ;;
+    *"no network with ssid"*|*"not found"*)
+      hint="That network is not in range — move closer or use Rescan." ;;
+    *"timeout"*|*"timed out"*|*"association took too long"*)
+      hint="The router did not answer in time — try again, or move closer." ;;
+    *"blocked"*|*"rfkill"*)
+      hint="The Wi-Fi radio is switched off in hardware." ;;
+    *) hint="" ;;
+  esac
+  err=$(printf '%s' "$err" | tr -d '"\\' | cut -c1-160)
+  hint=$(printf '%s' "$hint" | tr -d '"\\')
+  printf '{"ok":false,"error":"%s","hint":"%s","psk_len":%s}' "$err" "$hint" "${#psk}"
 fi

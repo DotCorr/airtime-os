@@ -1,0 +1,52 @@
+name: Build AirtimeOS (Debian base)
+on:
+  workflow_dispatch:
+  push:
+    tags: ["deb-v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stamp release version
+        run: echo "debian-v0.2.0+$(git rev-parse --short HEAD) $(date -u +%Y-%m-%d)" > overlay/etc/airtime-release
+
+      - name: Build live ISO (live-build in Debian container)
+        run: |
+          sudo modprobe loop || true
+          docker run --privileged --rm -v "$PWD":/os -w /os/debian debian:bookworm bash -c '
+            set -eux
+            apt-get update
+            apt-get install -y --no-install-recommends live-build ca-certificates
+            mkdir -p config/includes.chroot/usr/local/bin config/includes.chroot/usr/local/share config/includes.chroot/etc
+            cp -a /os/overlay/usr/local/bin/airtime-kiosk config/includes.chroot/usr/local/bin/
+            cp -a /os/overlay/usr/local/bin/airtime-settingsd config/includes.chroot/usr/local/bin/
+            cp -a /os/overlay/usr/local/share/airtime-settings config/includes.chroot/usr/local/share/
+            cp -a /os/overlay/etc/airtime-release config/includes.chroot/etc/ 2>/dev/null || true
+            chmod +x config/includes.chroot/usr/local/bin/* config/includes.chroot/usr/local/share/airtime-settings/cgi-bin/*
+            lb config \
+              --distribution bookworm \
+              --archive-areas "main contrib non-free non-free-firmware" \
+              --binary-images iso-hybrid \
+              --debian-installer none \
+              --memtest none \
+              --apt-recommends false \
+              --iso-application AirtimeOS \
+              --iso-publisher Dotcorr \
+              --iso-volume AIRTIMEOS \
+              --bootappend-live "boot=live components quiet splash persistence noeject"
+            lb build
+            mkdir -p /os/dist
+            mv live-image-amd64.hybrid.iso /os/dist/airtimeos-debian-x86_64.iso
+          '
+          ls -lh dist/
+
+      - name: Upload to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload v0.1.0 dist/airtimeos-debian-x86_64.iso --clobber -R ${{ github.repository }}

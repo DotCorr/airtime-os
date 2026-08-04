@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Airtime
+Description=Airtime kiosk boot splash
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/airtime
+ScriptFile=/usr/share/plymouth/themes/airtime/airtime.script

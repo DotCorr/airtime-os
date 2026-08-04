@@ -1,0 +1,22 @@
+#!/bin/sh
+set -e
+
+# kiosk user (uid 1000 so XDG_RUNTIME_DIR=/run/user/1000 matches the unit)
+id kiosk >/dev/null 2>&1 || useradd -m -u 1000 -s /bin/bash -G video,input,audio,render kiosk
+
+# branded boot splash, no text
+plymouth-set-default-theme airtime
+
+# our services
+systemctl enable airtime-kiosk.service airtime-settingsd.service
+systemctl set-default graphical.target
+
+# nothing on the console but our splash
+systemctl disable getty@tty1.service 2>/dev/null || true
+systemctl mask systemd-ask-password-plymouth.service 2>/dev/null || true
+
+# NetworkManager owns all interfaces (no ifupdown fighting it)
+printf '[main]\nplugins=keyfile\n\n[ifupdown]\nmanaged=true\n' > /etc/NetworkManager/NetworkManager.conf
+
+# regenerate initramfs so plymouth + firmware are present at early boot
+update-initramfs -u -k all

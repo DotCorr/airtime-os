@@ -1,0 +1,11 @@
+[Unit]
+Description=Airtime local settings server
+After=NetworkManager.service
+
+[Service]
+ExecStart=/usr/local/bin/airtime-settingsd
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

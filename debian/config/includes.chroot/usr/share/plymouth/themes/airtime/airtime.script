@@ -1,0 +1,31 @@
+# Airtime boot splash: wordmark on black with three breathing dots.
+Window.SetBackgroundTopColor(0, 0, 0);
+Window.SetBackgroundBottomColor(0, 0, 0);
+
+logo.image = Image("logo.png");
+logo.sprite = Sprite(logo.image);
+logo.sprite.SetX(Window.GetWidth() / 2 - logo.image.GetWidth() / 2);
+logo.sprite.SetY(Window.GetHeight() / 2 - logo.image.GetHeight() / 2);
+logo.sprite.SetZ(1);
+
+dot.image = Image("dot.png");
+for (i = 0; i < 3; i++) {
+  dots[i].sprite = Sprite(dot.image);
+  dots[i].sprite.SetX(Window.GetWidth() / 2 - 26 + i * 22);
+  dots[i].sprite.SetY(Window.GetHeight() / 2 + logo.image.GetHeight() / 2 + 26);
+  dots[i].sprite.SetZ(2);
+}
+
+tick = 0;
+fun refresh() {
+  tick++;
+  for (i = 0; i < 3; i++) {
+    phase = Math.Sin((tick / 12) - (i * 0.6));
+    dots[i].sprite.SetOpacity(0.25 + 0.55 * (phase + 1) / 2);
+  }
+}
+Plymouth.SetRefreshFunction(refresh);
+
+# no password prompts or messages on an ad screen
+fun quit() { logo.sprite.SetOpacity(0); }
+Plymouth.SetQuitFunction(quit);

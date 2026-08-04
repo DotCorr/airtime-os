@@ -55,12 +55,25 @@ try_keymgmt() {
   nmcli --wait 45 connection up id "$ssid" 2>&1
 }
 
+# Some routers (and Apple's Broadcom adapters) fail the default negotiation:
+# protected-management-frames mismatch, or a randomised MAC the router rejects.
+# Walk every combination rather than declaring the password wrong.
+try_hard() {
+  hp=""
+  [ -n "$hf" ] && hp="802-11-wireless.hidden yes"
+  nmcli connection delete id "$ssid" >/dev/null 2>&1
+  nmcli connection add type wifi con-name "$ssid" ssid "$ssid" \
+    wifi-sec.key-mgmt wpa-psk wifi-sec.psk "$psk" \
+    wifi-sec.pmf "$1" 802-11-wireless.cloned-mac-address permanent $hp >/dev/null 2>&1
+  nmcli --wait 45 connection up id "$ssid" 2>&1
+}
+
 out=$(try_std)
-if ! echo "$out" | grep -q successfully; then
-  if echo "$out" | grep -qi "secrets were required" && [ -n "$psk" ]; then
-    out=$(try_keymgmt wpa-psk)
-    echo "$out" | grep -q successfully || out=$(try_keymgmt sae)
-  fi
+if ! echo "$out" | grep -q successfully && [ -n "$psk" ]; then
+  out=$(try_keymgmt wpa-psk)
+  echo "$out" | grep -q successfully || out=$(try_keymgmt sae)
+  echo "$out" | grep -q successfully || out=$(try_hard 1)   # PMF disabled
+  echo "$out" | grep -q successfully || out=$(try_hard 3)   # PMF required
 fi
 
 if echo "$out" | grep -q successfully; then

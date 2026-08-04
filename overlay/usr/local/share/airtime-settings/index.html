@@ -168,7 +168,7 @@ async function doConnect(payload) {
   const r = await (await fetch("/cgi-bin/connect", { method: "POST", body })).json();
   // lead with the plain-language cause; keep the raw reason as a second line
   let msg = r.ok ? "Connected — starting Airtime…" : (r.hint || r.error || "Connection failed — try again.");
-  if (!r.ok && r.hint && r.error) msg += "  (" + r.error + ")";
+  if (!r.ok && r.error) msg += "  \u2014 " + r.error;
   if (!r.ok && typeof r.visible === "number") msg += "  [" + r.visible + " networks visible]";
   if (!r.ok && r.psk_len === 0 && (payload.psk || "").length > 0) {
     msg += " — the password did not reach the system; please report this";

@@ -40,6 +40,35 @@ jobs:
               --iso-publisher Dotcorr \
               --iso-volume AIRTIMEOS \
               --bootappend-live "boot=live components quiet splash persistence noeject"
+            # bootloader overrides (documented live-build mechanism): replace the
+            # Debian-branded, wait-forever menus with an instant AirtimeOS boot
+            mkdir -p config/bootloaders
+            cp -a /usr/share/live/build/bootloaders/isolinux config/bootloaders/ 2>/dev/null || true
+            cp -a /usr/share/live/build/bootloaders/grub-pc config/bootloaders/ 2>/dev/null || true
+            APPEND="boot=live components quiet splash persistence noeject"
+            cat > config/bootloaders/isolinux/isolinux.cfg <<ISOCFG
+            default airtime
+            prompt 0
+            timeout 1
+
+            label airtime
+              kernel /live/vmlinuz
+              append initrd=/live/initrd.img $APPEND
+            ISOCFG
+            sed -i "s/^            //" config/bootloaders/isolinux/isolinux.cfg
+            rm -f config/bootloaders/isolinux/menu.cfg config/bootloaders/isolinux/stdmenu.cfg config/bootloaders/isolinux/live.cfg 2>/dev/null || true
+            cat > config/bootloaders/grub-pc/grub.cfg <<GRUBCFG
+            set timeout=0
+            set timeout_style=hidden
+            set default=0
+
+            menuentry "AirtimeOS" {
+            	linux	/live/vmlinuz $APPEND
+            	initrd	/live/initrd.img
+            }
+            GRUBCFG
+            sed -i "s/^            //" config/bootloaders/grub-pc/grub.cfg
+            rm -f config/bootloaders/grub-pc/live.cfg config/bootloaders/grub-pc/config.cfg 2>/dev/null || true
             lb build
             mkdir -p /os/dist
             mv live-image-amd64.hybrid.iso /os/dist/airtimeos-debian-x86_64.iso

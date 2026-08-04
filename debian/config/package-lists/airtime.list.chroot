@@ -38,10 +38,3 @@ firmware-mediatek
 firmware-intel-graphics
 intel-microcode
 amd64-microcode
-xserver-xorg-core
-xserver-xorg-video-all
-xserver-xorg-input-all
-xserver-xorg-legacy
-xinit
-x11-xserver-utils
-unclutter

@@ -40,8 +40,7 @@ jobs:
               --iso-publisher Dotcorr \
               --iso-volume AIRTIMEOS \
               --bootappend-live "boot=live components quiet splash persistence noeject"
-            # keep live-build's generated kernel paths (versioned filenames);
-            # patch ONLY the menu behaviour and branding
+            # keep generated kernel paths, patch only menu behaviour + branding
             mkdir -p config/bootloaders
             cp -a /usr/share/live/build/bootloaders/isolinux config/bootloaders/ 2>/dev/null || true
             cp -a /usr/share/live/build/bootloaders/grub-pc config/bootloaders/ 2>/dev/null || true

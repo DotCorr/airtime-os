@@ -27,5 +27,5 @@ exec docker run --privileged --rm -v "$PWD/..:/os" -w /os/debian debian:bookworm
     --bootappend-live "boot=live components quiet splash persistence noeject"
   lb build
   mkdir -p /os/dist
-  mv live-image-amd64.hybrid.iso /os/dist/airtimeos-debian-x86_64.iso
+  mv live-image-amd64.hybrid.iso /os/dist/airtimeos-x86_64.iso
 '

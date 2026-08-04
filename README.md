@@ -1,72 +1,52 @@
 # AirtimeOS
 
-A minimal embedded Linux that turns **any computer with an HDMI port** into a
-dedicated Airtime screen. Boots straight into a fullscreen kiosk showing
-`airtime.dotcorr.com/tv` — the owner scans the QR from their phone and the
-box becomes a revenue-generating ad screen. No smart TV required.
+The operating system for Airtime screens. Boot it on any computer with a
+display output and that machine becomes a rentable ad screen: it shows a QR
+code, the owner scans it with a phone, and it starts playing ads.
 
-## Architecture
+Built on Debian — full hardware firmware, a branded boot splash, and nothing
+else. There is no desktop environment: the machine boots straight into the
+Airtime interface and there is nothing behind it to escape into.
 
-- **Base**: Alpine Linux (musl, tiny, apk) — image ~350 MB
-- **Session**: [Cage](https://github.com/cage-kiosk/cage) (Wayland kiosk
-  compositor — one fullscreen app, nothing else, ever)
-- **Runtime**: Chromium in kiosk mode. A browser *is* the performant native
-  runtime here — hardware-accelerated video decode, WebGL, WebSocket — no
-  Electron/Tauri wrapper needed because the OS itself is the wrapper.
-- **Connectivity**: NetworkManager + a first-boot settings screen (served
-  locally by the box) for Wi-Fi setup, with **wvkbd** on-screen keyboard for
-  touch displays
-- **Watchdog**: the kiosk restarts Chromium if it ever dies; systemd-style
-  supervision via OpenRC `respawn`
-- **Updates**: the app is the website — every deploy updates every box
-  instantly; the OS only ships base-system updates
+## Use it
 
-## Boot flow
+1. Download `airtimeos-x86_64.iso` from
+   [Releases](https://github.com/DotCorr/airtime-os/releases).
+2. Flash it to a USB stick with [balenaEtcher](https://etcher.balena.io).
+3. Plug the machine into a screen and boot from the stick.
+4. Scan the QR code with your phone. Done — it's earning.
 
-1. Power on → auto-login → Cage starts
-2. If no network: local settings page (`http://localhost:8800`) opens in the
-   kiosk instead — pick Wi-Fi, type password (virtual keyboard on touch),
-   connect
-3. Once online: kiosk navigates to `https://airtime.dotcorr.com/tv`
-4. TV shows the QR → owner claims it from their phone → box flips into the
-   ad player automatically and survives reboots (the pairing lives server-side;
-   the player URL is persisted in `/etc/airtime/screen.conf` after claim)
+Wi-Fi setup, display scaling, updates, and installing to the internal disk all
+live in the on-screen settings panel (the gear in the taskbar). Running from
+the stick keeps its pairing and Wi-Fi across reboots; installing to disk frees
+the stick and survives on its own.
 
-## Build (needs Linux or Docker; ~15 min, ~2 GB downloads)
+## What's inside
 
-```sh
-# on macOS with Docker Desktop running:
-./build.sh docker
+| | |
+|---|---|
+| Base | Debian bookworm (live-build) |
+| Session | cage (Wayland) running Chromium in kiosk mode |
+| Interface | the Airtime web app — there is no other UI |
+| Boot | Plymouth splash, no menus, no logs on screen |
+| Hardware | firmware for Intel/AMD graphics and Intel/Broadcom/Realtek/Atheros/MediaTek wireless |
 
-# on a Linux box with root:
-sudo ./build.sh native
-```
+## Build it
 
-Produces `dist/airtimeos-x86_64.img` — a raw disk image.
-
-## Test in QEMU
+CI builds the image on every release tag (`.github/workflows/build-debian.yml`).
+To build locally you need Docker:
 
 ```sh
-./test-qemu.sh              # boots the built image with virtio-gpu + network
+./debian/build.sh          # produces dist/airtimeos-x86_64.iso
+./test-qemu.sh             # boot it in QEMU (UEFI, like real hardware)
 ```
 
-Inside a VM everything renders in software (no GPU passthrough), so expect a
-few minutes from boot to the pairing screen — especially on non-x86 hosts where
-the whole CPU is emulated. Real hardware with any GPU is far faster. A serial
-console is attached to the terminal; `root` logs in without a password for
-debugging.
+## Repository
 
-## Flash to a real device
-
-```sh
-# find the disk with `diskutil list` (macOS) or `lsblk` (Linux) — BE CAREFUL
-sudo dd if=dist/airtimeos-x86_64.img of=/dev/diskN bs=4m status=progress
+```
+debian/     live-build configuration: packages, hooks, Plymouth theme
+overlay/    the Airtime layer: kiosk session, settings server, policies
 ```
 
-Then plug the box into any TV/monitor via HDMI. Done.
-
-## Hardware targets
-
-Any x86_64 mini-PC (N100-class boxes are ideal: fanless, ~4W, <€150).
-ARM builds (Raspberry Pi / CM4) are a follow-up — same overlay, different
-base image.
+The platform itself (the marketplace, the app you see on screen) is a separate
+private repository; this repo is only the OS that hosts it.

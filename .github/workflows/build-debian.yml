@@ -29,8 +29,7 @@ jobs:
             apt-get update
             apt-get install -y --no-install-recommends live-build ca-certificates
             mkdir -p config/includes.chroot/usr/local/bin config/includes.chroot/usr/local/share config/includes.chroot/etc
-            cp -a /os/overlay/usr/local/bin/airtime-kiosk config/includes.chroot/usr/local/bin/
-            cp -a /os/overlay/usr/local/bin/airtime-settingsd config/includes.chroot/usr/local/bin/
+            cp -a /os/overlay/usr/local/bin/. config/includes.chroot/usr/local/bin/
             cp -a /os/overlay/usr/local/share/airtime-settings config/includes.chroot/usr/local/share/
             cp -a /os/overlay/etc/airtime-release /os/overlay/etc/airtime-version /os/overlay/etc/airtime-build config/includes.chroot/etc/ 2>/dev/null || true
             mkdir -p config/includes.chroot/etc/chromium/policies/managed

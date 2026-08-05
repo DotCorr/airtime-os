@@ -40,6 +40,14 @@ if grep -qi hypervisor /proc/cpuinfo; then
   fi
 fi
 
+# Plymouth holds DRM master while its splash is up. If it has not released the
+# display by the time we start, the compositor cannot open any GPU and the
+# screen stays on the logo forever — tell it to quit before we try.
+if command -v plymouth >/dev/null 2>&1; then
+  plymouth quit >/dev/null 2>&1 || true
+  sleep 1
+fi
+
 fails=0
 while true; do
   # The first session after cold boot sometimes wedges its renderer before
@@ -77,6 +85,21 @@ while true; do
   else
     fails=0
   fi
+  # The compositor could not drive this GPU twice in a row. Rather than leave a
+  # customer looking at a logo, run the same browser under X, which falls back
+  # through modesetting, framebuffer and VESA.
+  if [ "$fails" -ge 2 ] && command -v xinit >/dev/null 2>&1; then
+    {
+      printf '\033[2J\033[H\n\n\n\n'
+      printf '\033[1m\033[38;2;251;83;52m%*s\033[0m\n\n' 46 'AIRTIME'
+      printf '%*s\n' 58 'starting in compatibility mode...'
+    } > /dev/tty1 2>/dev/null || true
+    x_flags=$(printf '%s' "$chromium_flags" | sed 's/--ozone-platform=wayland//')
+    xinit /usr/bin/chromium $x_flags "$boot" -- :0 vt1 -nolisten tcp -keeptty >>/tmp/kiosk.log 2>&1
+    sleep 2
+    continue
+  fi
+
   if [ "$fails" -ge 3 ]; then
     {
       printf '\033[2J\033[H\n\n\n\n\n\n\n\n'

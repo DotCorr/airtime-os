@@ -1,0 +1,31 @@
+#!/bin/sh
+# The Airtime session, run by the display manager exactly like a desktop
+# session. LightDM has already dealt with the VT, X, permissions and the seat —
+# all the things that go wrong when you try to do it by hand.
+set -u
+
+APP_URL="$(cat /etc/airtime/screen.conf 2>/dev/null || echo 'https://airtime.dotcorr.com/tv')"
+SETTINGS_URL="http://localhost:8800"
+
+# never blank, never sleep: this is a shop screen
+xset s off -dpms s noblank 2>/dev/null || true
+# native panel mode — the fix for letterboxed, blurry output
+out=$(xrandr 2>/dev/null | awk '/ connected/ {print $1; exit}')
+[ -n "$out" ] && xrandr --output "$out" --auto 2>/dev/null || true
+xrandr > /tmp/airtime-display.txt 2>&1
+unclutter -idle 1 -root >/dev/null 2>&1 &
+matchbox-window-manager -use_titlebar no -use_cursor no >/dev/null 2>&1 &
+
+flags="--kiosk --no-first-run --noerrdialogs --disable-infobars \
+  --disable-session-crashed-bubble --autoplay-policy=no-user-gesture-required \
+  --disable-pinch --overscroll-history-navigation=0 \
+  --check-for-update-interval=31536000 --password-store=basic \
+  --default-background-color=FF000000"
+grep -qi hypervisor /proc/cpuinfo && flags="$flags --remote-debugging-port=9222 --remote-allow-origins=*"
+
+# Chromium dies -> bring it straight back; the session itself is supervised by
+# the display manager, so we never re-implement session recovery either.
+while true; do
+  chromium $flags "$SETTINGS_URL/boot.html#$APP_URL|$SETTINGS_URL" >>/tmp/kiosk.log 2>&1
+  sleep 2
+done

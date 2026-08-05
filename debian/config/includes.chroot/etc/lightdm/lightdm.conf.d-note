@@ -1,0 +1,2 @@
+This machine runs a single autologin session (see /usr/share/xsessions/airtime.desktop).
+Logs: /var/log/lightdm/, /tmp/kiosk.log. Console: Ctrl+Alt+F2 (root).

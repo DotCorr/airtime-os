@@ -1,0 +1,5 @@
+[Desktop Entry]
+Name=Airtime
+Comment=Airtime kiosk
+Exec=/usr/local/bin/airtime-session
+Type=Application

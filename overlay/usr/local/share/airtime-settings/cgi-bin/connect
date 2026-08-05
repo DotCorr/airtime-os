@@ -12,6 +12,16 @@ psk=$(dec "$(val psk)")
 hidden=$(val hidden)
 [ -z "$ssid" ] && { echo '{"ok":false,"error":"no ssid"}'; exit 0; }
 
+# No adapter at all: answer with the real cause instead of running the whole
+# association ladder and reporting whatever error falls out of the end of it.
+if ! ls /sys/class/net/*/phy80211 >/dev/null 2>&1; then
+  reason=$(sed -n "s/^reason: //p" /run/airtime-wifi-driver 2>/dev/null | tail -1)
+  [ -z "$reason" ] && reason="This machine has no usable Wi-Fi adapter. Plug in Ethernet, or a USB Wi-Fi adapter."
+  reason=$(printf '%s' "$reason" | tr -d '"\\')
+  printf '{"ok":false,"error":"no wireless adapter","hint":"%s","visible":0,"psk_len":%s}' "$reason" "${#psk}"
+  exit 0
+fi
+
 # radio on and unblocked — a blocked radio looks exactly like "no networks"
 rfkill unblock wifi >/dev/null 2>&1
 rfkill unblock all  >/dev/null 2>&1

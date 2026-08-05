@@ -1,0 +1,59 @@
+#!/bin/sh
+# The Broadcom wireless drivers that are not on the Debian installer media.
+#
+# firmware-brcm80211 only feeds brcmfmac and brcmsmac. The Broadcom parts in
+# most MacBooks are neither:
+#
+#   BCM4360 4352 43142 43224     -> wl   (broadcom-sta, out-of-tree, needs DKMS)
+#   BCM4331 4321 4312 4306       -> b43  (firmware must be cut from a blob)
+#   BCM4350 43602 4356           -> brcmfmac  (already covered)
+#   BCM4364 4377  (T2 Macs)      -> Apple-licensed firmware, not redistributable
+#
+# Without wl and b43 the adapter either never appears or associates and drops,
+# which reaches the user as "wrong password" no matter what they type. Both are
+# built into the image here, so a screen that cannot reach the network still
+# has everything it needs to fix its own network.
+#
+# Nothing here is allowed to be fatal: an out-of-tree module that fails to
+# compile against a newer kernel must not take the whole image down with it.
+set -u
+export DEBIAN_FRONTEND=noninteractive
+report=/etc/airtime-wifi-drivers
+: > "$report"
+
+kver=$(ls /lib/modules | head -1)
+echo "kernel: $kver" >> "$report"
+
+# b43: the installer downloads the proprietary blob and cuts the firmware out
+# of it during this build, so the shipped image already carries the result.
+if apt-get install -y --no-install-recommends b43-fwcutter firmware-b43-installer; then
+  echo "b43: firmware installed" >> "$report"
+else
+  echo "b43: unavailable" >> "$report"
+fi
+
+# wl: out-of-tree, so it has to be compiled against this exact kernel. The
+# headers stay in the image on purpose — DKMS can then rebuild the module if
+# the kernel is ever updated in the field.
+if apt-get install -y --no-install-recommends \
+     "linux-headers-$kver" build-essential dkms broadcom-sta-dkms; then
+  if modinfo -k "$kver" wl >/dev/null 2>&1; then
+    echo "wl: built for $kver" >> "$report"
+  else
+    echo "wl: DKMS produced no module for $kver" >> "$report"
+  fi
+else
+  echo "wl: unavailable" >> "$report"
+fi
+
+# broadcom-sta blacklists b43, brcmsmac, bcma and ssb so that wl can own every
+# Broadcom device. That trades one family of Macs for another: it would leave
+# a BCM4331 with no driver at all. Undo it, and stop wl from auto-loading
+# instead. Which driver a given machine needs is decided at boot from its
+# actual PCI ID by airtime-wifi-driver, not guessed here.
+rm -f /etc/modprobe.d/broadcom-sta-dkms.conf /etc/modprobe.d/broadcom-sta-common.conf
+printf '# loaded on demand by airtime-wifi-driver\nblacklist wl\n' \
+  > /etc/modprobe.d/airtime-wl.conf
+
+depmod -a "$kver" 2>/dev/null || true
+cat "$report"

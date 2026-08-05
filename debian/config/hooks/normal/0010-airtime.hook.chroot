@@ -15,6 +15,7 @@ plymouth-set-default-theme airtime
 
 # our services
 systemctl enable airtime-settingsd.service
+systemctl enable airtime-wifi-driver.service
 systemctl enable lightdm.service
 # lightdm owns the graphical session now
 systemctl disable airtime-kiosk.service 2>/dev/null || true

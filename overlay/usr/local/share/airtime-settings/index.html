@@ -59,6 +59,10 @@
   .osk-key:active { background: #FB5334; border-color: #FB5334; }
   .osk-key.wide { flex: 1.7 1 0; font-size: clamp(0.8rem, 1.8vh, 1.05rem); }
   .osk-key.space { flex: 5 1 0; }
+    .adapter{margin-top:14px;padding:12px 14px;border-left:3px solid #FB5334;
+      background:#141414;color:#c9c9c9;font-size:14px;line-height:1.5}
+    .adapter b{color:#fff;font-weight:600}
+    .adapter .chip{display:block;margin-top:6px;color:#7a7a7a;font-size:12px}
 </style>
 </head>
 <body>
@@ -93,6 +97,7 @@
       <button onclick="connectHidden()">Connect to hidden network</button>
     </div>
     <div class="status" id="status"></div>
+    <div class="adapter hide" id="wifi-adapter"></div>
 
     <div class="section">
       <h2>Display &amp; input</h2>
@@ -199,6 +204,22 @@ async function refreshCurrent() {
     currentSsid = st.wifi ? st.wifi.replace(/ \(\d+%\)$/, "") : null;
     document.getElementById("current-row").style.display = currentSsid ? "flex" : "none";
     if (currentSsid) document.getElementById("current-ssid").textContent = "Connected to " + st.wifi;
+    // A screen that cannot connect deserves to know whether the problem is
+    // the password or the machine. Only speak up when there is no adapter.
+    const ad = document.getElementById("wifi-adapter");
+    const broken = st.wifiStatus === "failed" || st.wifiIf === "none";
+    if (broken) {
+      const why = st.wifiReason ||
+        (st.fwMissing
+          ? "This machine's Wi-Fi needs firmware that cannot be shipped with Linux (" + st.fwMissing + ")."
+          : "No usable Wi-Fi adapter was found on this machine.");
+      ad.innerHTML = "<b>Wi-Fi is unavailable on this machine.</b> " + why +
+        " Plug in an Ethernet cable, or a USB Wi-Fi adapter \u2014 both work immediately." +
+        "<span class=\"chip\">" + (st.wifiDev || "unknown adapter") + " \u00b7 driver " + (st.wifiDrv || "none") + "</span>";
+      ad.classList.remove("hide");
+    } else {
+      ad.classList.add("hide");
+    }
   } catch {}
 }
 refreshCurrent(); setInterval(refreshCurrent, 8000);

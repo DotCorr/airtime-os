@@ -1,0 +1,19 @@
+[Unit]
+Description=Select the wireless driver for this machine
+DefaultDependencies=no
+After=systemd-udev-settle.service
+Before=NetworkManager.service network-pre.target
+Wants=network-pre.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/airtime-wifi-driver
+StandardOutput=journal
+StandardError=journal
+# a machine with no wireless at all must still finish booting
+SuccessExitStatus=0 1
+TimeoutStartSec=45
+
+[Install]
+WantedBy=multi-user.target

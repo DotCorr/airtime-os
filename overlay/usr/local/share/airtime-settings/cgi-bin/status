@@ -18,6 +18,20 @@ uscale=$(cat /etc/airtime-scale 2>/dev/null || echo auto)
 drv=$(for d in /sys/class/drm/card*/device/driver; do [ -e "$d" ] && basename "$(readlink -f "$d")" && break; done)
 native=$(cat /sys/class/drm/card*-*/modes 2>/dev/null | head -1)
 fb=$(cat /sys/class/graphics/fb0/virtual_size 2>/dev/null | tr ',' 'x')
+# --- wifi adapter diagnosis: name the chip, the driver, and any firmware the
+# kernel asked for and did not get. A venue owner cannot guess this. ---
+wifi_dev=$(lspci -nn 2>/dev/null | grep -iE "network controller|wireless" | head -1 | sed 's/.*: //' | cut -c1-70)
+wifi_if=$(ls /sys/class/net 2>/dev/null | grep -E "^wl" | head -1)
+wifi_drv=""
+[ -n "$wifi_if" ] && wifi_drv=$(basename "$(readlink -f "/sys/class/net/$wifi_if/device/driver" 2>/dev/null)" 2>/dev/null)
+wifi_status=$(sed -n "s/^status: //p" /run/airtime-wifi-driver 2>/dev/null | tail -1)
+wifi_reason=$(sed -n "s/^reason: //p" /run/airtime-wifi-driver 2>/dev/null | tail -1)
+[ -z "$wifi_drv" ] && wifi_drv=$(sed -n "s/^driver: //p" /run/airtime-wifi-driver 2>/dev/null | tail -1)
+fw_missing=$(dmesg 2>/dev/null | grep -iE "firmware: failed|Direct firmware load.*failed|failed to load firmware" | tail -1 | sed 's/.*load //' | cut -c1-70)
 active=$(sed -n 's/.*current.*/&/p' /tmp/airtime-display.txt 2>/dev/null | head -1 | awk '{print $1}')
-printf '{"battery":%s,"ac":%s,"wifi":"%s","eth":"%s","connectivity":"%s","version":"%s","mode":"%s","autoupdate":"%s","scale":"%s","gpu":"%s","native":"%s","fb":"%s","active":"%s"}' \
-  "$bat" "$ac" "$wifi" "$eth" "$conn" "$ver" "$mode" "$auto" "$uscale" "${drv:-none}" "${native:-unknown}" "${fb:-unknown}" "${active:-unknown}"
+# these come from lspci and dmesg: free text that must not break the JSON
+for v in wifi_dev wifi_reason fw_missing; do
+  eval "$v=\$(printf '%s' \"\$$v\" | tr -d '\"\\\\' | tr -s ' ')"
+done
+printf '{"battery":%s,"ac":%s,"wifi":"%s","eth":"%s","connectivity":"%s","version":"%s","mode":"%s","autoupdate":"%s","scale":"%s","gpu":"%s","native":"%s","fb":"%s","active":"%s","wifiDev":"%s","wifiIf":"%s","wifiDrv":"%s","fwMissing":"%s","wifiStatus":"%s","wifiReason":"%s"}' \
+  "$bat" "$ac" "$wifi" "$eth" "$conn" "$ver" "$mode" "$auto" "$uscale" "${drv:-none}" "${native:-unknown}" "${fb:-unknown}" "${active:-unknown}" "${wifi_dev:-unknown}" "${wifi_if:-none}" "${wifi_drv:-none}" "${fw_missing:-}" "${wifi_status:-unknown}" "${wifi_reason:-}"

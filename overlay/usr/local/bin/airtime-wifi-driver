@@ -1,0 +1,95 @@
+#!/bin/sh
+# Choose the wireless driver this particular machine needs, before
+# NetworkManager looks for an adapter.
+#
+# Linux ships three separate drivers for Broadcom silicon and no single one of
+# them covers the range of chips Apple used. Debian's own answer is to make the
+# user install the right one by hand, which is not available to an appliance
+# with no keyboard. So the machine works it out from its own PCI ID, and if
+# that lookup is wrong it keeps trying drivers until an interface appears.
+#
+# Everything else -- Intel, Realtek, Atheros, MediaTek, and the Broadcom chips
+# with in-tree support -- auto-loads normally and never reaches this script.
+set -u
+log() { echo "[wifi-driver] $*"; }
+state=/run/airtime-wifi-driver
+: > "$state"
+
+have_wifi() {
+  for n in /sys/class/net/*/phy80211; do [ -e "$n" ] && return 0; done
+  return 1
+}
+
+# Chips whose only working driver is the out-of-tree wl. Everything absent from
+# this list is left to the kernel, which is right far more often than not.
+WL_IDS="0x43a0 0x43a1 0x43a2 0x43a3 0x43ae 0x43b1 0x43c3 0x4365 0x4353 0x4357 0x4358 0x4359 0x4331"
+
+bcm=""
+bcm_id=""
+for d in /sys/bus/pci/devices/*; do
+  [ -r "$d/class" ] && [ -r "$d/vendor" ] || continue
+  case "$(cat "$d/class")" in 0x0280*) ;; *) continue ;; esac
+  [ "$(cat "$d/vendor")" = "0x14e4" ] || continue
+  bcm=$d
+  bcm_id=$(cat "$d/device")
+  break
+done
+
+if [ -z "$bcm" ]; then
+  have_wifi && log "wireless already up, nothing to do" || log "no Broadcom wireless device"
+  echo "device: none-or-supported" >> "$state"
+  exit 0
+fi
+
+log "Broadcom wireless $bcm_id"
+echo "device: 14e4:$(printf '%s' "$bcm_id" | sed 's/^0x//')" >> "$state"
+
+load_wl() {
+  # wl and the in-tree drivers cannot both own the device
+  for m in b43 brcmsmac bcma ssb brcmfmac; do rmmod "$m" 2>/dev/null; done
+  modprobe wl 2>/dev/null
+}
+
+wanted=""
+for id in $WL_IDS; do
+  [ "$id" = "$bcm_id" ] && wanted=wl && break
+done
+
+if [ "$wanted" = wl ]; then
+  log "this chip needs wl"
+  load_wl
+  sleep 2
+fi
+
+# Fallback ladder. The ID table above can be incomplete -- new board, rebadged
+# chip, a Mac nobody tested -- so never conclude from it that the machine has
+# no wireless. Try every driver that could plausibly own a Broadcom radio and
+# stop at the first one that produces an interface.
+if ! have_wifi; then
+  for drv in wl brcmfmac b43 brcmsmac; do
+    log "trying $drv"
+    if [ "$drv" = wl ]; then load_wl; else rmmod wl 2>/dev/null; modprobe "$drv" 2>/dev/null; fi
+    sleep 3
+    if have_wifi; then wanted=$drv; break; fi
+  done
+fi
+
+if have_wifi; then
+  iface=""
+  for n in /sys/class/net/*/phy80211; do iface=$(basename "$(dirname "$n")"); break; done
+  log "wireless up on $iface via ${wanted:-in-tree}"
+  printf 'driver: %s\ninterface: %s\nstatus: ok\n' "${wanted:-in-tree}" "$iface" >> "$state"
+  rfkill unblock wifi 2>/dev/null
+else
+  log "no driver produced a wireless interface"
+  # The honest cases: a T2 Mac whose firmware is Apple-licensed and cannot be
+  # shipped, or a chip newer than this kernel. Say so rather than leaving the
+  # settings panel to blame the password.
+  reason="This machine's Wi-Fi chip has no driver available on Linux."
+  case "$bcm_id" in
+    0x4364|0x4377|0x4425|0x4433)
+      reason="This Mac's Wi-Fi needs Apple's own firmware, which cannot legally be included in Linux. Use Ethernet or a USB Wi-Fi adapter." ;;
+  esac
+  printf 'driver: none\nstatus: failed\nreason: %s\n' "$reason" >> "$state"
+fi
+exit 0

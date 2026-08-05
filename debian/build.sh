@@ -9,8 +9,7 @@ exec docker run --privileged --rm -v "$PWD/..:/os" -w /os/debian debian:trixie b
   apt-get install -y --no-install-recommends live-build ca-certificates
   # shared overlay (kiosk scripts + settings site) from the common tree
   mkdir -p config/includes.chroot/usr/local/bin config/includes.chroot/usr/local/share
-  cp -a /os/overlay/usr/local/bin/airtime-kiosk config/includes.chroot/usr/local/bin/
-  cp -a /os/overlay/usr/local/bin/airtime-settingsd config/includes.chroot/usr/local/bin/
+  cp -a /os/overlay/usr/local/bin/. config/includes.chroot/usr/local/bin/
   cp -a /os/overlay/usr/local/share/airtime-settings config/includes.chroot/usr/local/share/
   chmod +x config/includes.chroot/usr/local/bin/* config/includes.chroot/usr/local/share/airtime-settings/cgi-bin/*
   lb clean --purge || true

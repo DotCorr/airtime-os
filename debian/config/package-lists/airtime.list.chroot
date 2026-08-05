@@ -47,3 +47,5 @@ xserver-xorg-video-vesa
 xserver-xorg-video-fbdev
 lightdm
 lightdm-gtk-greeter
+pciutils
+usbutils

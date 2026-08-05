@@ -224,12 +224,14 @@ async function refreshCurrent() {
     const ad = document.getElementById("wifi-adapter");
     const broken = st.wifiStatus === "failed" || st.wifiIf === "none";
     if (broken) {
+      // wifiReason already carries its own advice; only the generic fallbacks
+      // need the "what to do instead" sentence appended.
+      const advice = " Plug in an Ethernet cable, or a USB Wi-Fi adapter \u2014 both work immediately.";
       const why = st.wifiReason ||
-        (st.fwMissing
+        ((st.fwMissing
           ? "This machine's Wi-Fi needs firmware that cannot be shipped with Linux (" + st.fwMissing + ")."
-          : "No usable Wi-Fi adapter was found on this machine.");
+          : "No usable Wi-Fi adapter was found on this machine.") + advice);
       ad.innerHTML = "<b>Wi-Fi is unavailable on this machine.</b> " + why +
-        " Plug in an Ethernet cable, or a USB Wi-Fi adapter \u2014 both work immediately." +
         "<span class=\"chip\">" + (st.wifiDev || "unknown adapter") + " \u00b7 driver " + (st.wifiDrv || "none") + "</span>";
       ad.classList.remove("hide");
     } else {

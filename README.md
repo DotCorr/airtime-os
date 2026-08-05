@@ -25,11 +25,30 @@ the stick and survives on its own.
 
 | | |
 |---|---|
-| Base | Debian bookworm (live-build) |
-| Session | cage (Wayland) running Chromium in kiosk mode |
+| Base | Debian 13 "trixie" (live-build) |
+| Session | LightDM autologin into Chromium in kiosk mode on X |
 | Interface | the Airtime web app — there is no other UI |
 | Boot | Plymouth splash, no menus, no logs on screen |
-| Hardware | firmware for Intel/AMD graphics and Intel/Broadcom/Realtek/Atheros/MediaTek wireless |
+| Graphics | Intel, AMD and Nvidia firmware, all of it in the initramfs |
+| Wireless | Intel, Realtek, Atheros, MediaTek, and all three Broadcom drivers |
+
+The session is started by a display manager rather than by hand. That is worth
+saying out loud because the alternative was tried: LightDM already handles VT
+allocation, X startup, permissions, seat management and waiting for Plymouth to
+release the display, and doing any of that yourself works on the machine in
+front of you and fails on the next one.
+
+## Wi-Fi
+
+Linux ships three separate drivers for Broadcom silicon and no single one of
+them covers every chip, so the image carries all three — `brcmfmac`, `b43` and
+the out-of-tree `wl` — and picks one at boot from the machine's own PCI ID,
+falling back through the others if that lookup does not recognise the chip.
+
+Two cases genuinely cannot work, and the settings panel says so plainly instead
+of blaming the password: Macs with a T2 chip (BCM4364/4377), whose firmware is
+Apple-licensed and cannot legally be included in Linux, and adapters newer than
+the shipped kernel. Ethernet or any USB Wi-Fi adapter works immediately on both.
 
 ## Build it
 

@@ -179,6 +179,21 @@ async function doConnect(payload) {
     msg += " — the password did not reach the system; please report this";
   }
   document.getElementById("status").textContent = msg;
+  // On failure, name the adapter. If this screen ends up in a support message
+  // the chip and driver are the two facts that decide what to do next, and
+  // nobody on a machine with no keyboard can look them up.
+  if (!r.ok) {
+    try {
+      const st = await (await fetch("/cgi-bin/status")).json();
+      const ad = document.getElementById("wifi-adapter");
+      if (ad.classList.contains("hide")) {
+        ad.innerHTML = "<b>Still not connecting?</b> Ethernet or a USB Wi-Fi adapter will work immediately." +
+          "<span class=\"chip\">" + (st.wifiDev || "unknown adapter") + " \u00b7 driver " +
+          (st.wifiDrv || "none") + (st.fwMissing ? " \u00b7 missing firmware " + st.fwMissing : "") + "</span>";
+        ad.classList.remove("hide");
+      }
+    } catch {}
+  }
   if (r.ok) setTimeout(() => location.href = "https://airtime.dotcorr.com/tv", 2500);
 }
 function connect() { doConnect({ ssid: chosen, psk: document.getElementById("psk").value }); }

@@ -1,0 +1,94 @@
+#!/bin/sh
+# Display settings: read them, set them, and put them back after a reboot.
+#
+# An ad screen is not a laptop. It is competing with daylight, shop lighting and
+# whatever else is on the wall, and a dim one simply does not get looked at —
+# brightness is the difference between an ad that works and an ad nobody sees.
+# So the default is the panel's maximum, and it stays there unless the venue
+# says otherwise.
+#
+# Maximum means the backlight's own maximum. There is a tempting second knob --
+# xrandr --brightness, which multiplies the output gamma and can be pushed past
+# 1.0 -- and it is deliberately not used to go brighter: above 1.0 it clips the
+# highlights, so whites blow out and a photograph in an ad loses its detail.
+# That is trading the quality of the thing being advertised for a number. It is
+# only ever used to go *darker* than the panel's own minimum allows.
+set -u
+CONF=/etc/airtime/display.conf
+
+backlight_dir() {
+  for d in /sys/class/backlight/*; do [ -d "$d" ] && echo "$d" && return 0; done
+  return 1
+}
+
+get_brightness() {
+  d=$(backlight_dir) || { echo ""; return; }
+  cur=$(cat "$d/brightness" 2>/dev/null) || { echo ""; return; }
+  max=$(cat "$d/max_brightness" 2>/dev/null) || { echo ""; return; }
+  [ "$max" -gt 0 ] 2>/dev/null || { echo ""; return; }
+  echo $(( cur * 100 / max ))
+}
+
+# percent 1..100
+set_brightness() {
+  pct=$1
+  [ "$pct" -lt 1 ] 2>/dev/null && pct=1
+  [ "$pct" -gt 100 ] 2>/dev/null && pct=100
+  d=$(backlight_dir) || return 1
+  max=$(cat "$d/max_brightness" 2>/dev/null) || return 1
+  val=$(( max * pct / 100 ))
+  [ "$val" -lt 1 ] && val=1
+  echo "$val" > "$d/brightness" 2>/dev/null || return 1
+  return 0
+}
+
+primary_output() { xrandr 2>/dev/null | awk '/ connected/ {print $1; exit}'; }
+
+apply_rotation() {
+  case "$1" in normal|left|right|inverted) ;; *) return 0 ;; esac
+  out=$(primary_output) || return 0
+  [ -n "$out" ] && xrandr --output "$out" --rotate "$1" 2>/dev/null || true
+}
+
+# Only ever used to dim below what the backlight can do, or on machines with no
+# backlight control at all (most desk monitors report none over HDMI).
+apply_soft_dim() {
+  out=$(primary_output) || return 0
+  [ -n "$out" ] && xrandr --output "$out" --brightness "$1" 2>/dev/null || true
+}
+
+case "${1:-apply}" in
+  apply)
+    # Everything a venue has chosen is in one file on disk, so an installed
+    # screen comes back from a power cut looking exactly as it was left.
+    brightness=100
+    rotation=normal
+    [ -r "$CONF" ] && . "$CONF" 2>/dev/null
+    if ! set_brightness "$brightness"; then
+      # No hardware backlight. Full brightness is then simply the panel's own
+      # output, which is already the maximum -- never push gamma above 1.0.
+      [ "$brightness" -lt 100 ] 2>/dev/null &&
+        apply_soft_dim "$(awk "BEGIN{printf \"%.2f\", $brightness/100}")"
+    fi
+    apply_rotation "$rotation"
+    ;;
+  get)
+    hw=$(get_brightness)
+    brightness=100
+    rotation=normal
+    [ -r "$CONF" ] && . "$CONF" 2>/dev/null
+    printf '{"brightness":%s,"rotation":"%s","hardware":%s}\n' \
+      "${hw:-$brightness}" "$rotation" "$([ -n "$hw" ] && echo true || echo false)"
+    ;;
+  set)
+    mkdir -p /etc/airtime
+    brightness=100
+    rotation=normal
+    [ -r "$CONF" ] && . "$CONF" 2>/dev/null
+    [ -n "${2:-}" ] && brightness=$2
+    [ -n "${3:-}" ] && rotation=$3
+    printf 'brightness=%s\nrotation=%s\n' "$brightness" "$rotation" > "$CONF"
+    "$0" apply
+    ;;
+esac
+exit 0

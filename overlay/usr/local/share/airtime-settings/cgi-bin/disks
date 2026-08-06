@@ -4,11 +4,31 @@ echo "Access-Control-Allow-Origin: *"
 echo "Access-Control-Allow-Private-Network: true"
 echo "Access-Control-Allow-Headers: *"
 echo
-boot=$(awk '$2 ~ /^\/media\// {print $1; exit}' /proc/mounts | sed 's/[0-9]*$//;s/p$//')
-lsblk -dnbo NAME,SIZE,MODEL,TYPE 2>/dev/null | awk -v boot="$boot" '
-  $NF=="disk" {
-    dev="/dev/"$1
-    model=""; for (i=3; i<NF; i++) model=model (i>3?" ":"") $i
-    printf("%s{\"dev\":\"%s\",\"size\":%s,\"model\":\"%s\",\"isBoot\":%s}", (n++?",":""), dev, $2, model, (dev==boot?"true":"false"))
+# Which disk are we running from? Everything here erases a disk, so getting this
+# wrong means offering to erase the stick the machine is currently booted from.
+# The old test looked for a /media mount, which is where Alpine put the live
+# medium; Debian's live-boot mounts it at /run/live/medium, so on every Debian
+# build the boot device was not being excluded at all.
+boot=""
+for mp in /run/live/medium /lib/live/mount/medium /media/*; do
+  [ -d "$mp" ] || continue
+  src=$(awk -v m="$mp" '$2 == m { print $1; exit }' /proc/mounts)
+  [ -n "$src" ] && { boot=$src; break; }
+done
+# fall back to whatever holds the root filesystem
+[ -z "$boot" ] && boot=$(awk '$2 == "/" { print $1; exit }' /proc/mounts)
+# /dev/sda2 -> /dev/sda, /dev/nvme0n1p2 -> /dev/nvme0n1, /dev/mmcblk0p1 -> /dev/mmcblk0
+bootdisk=$(printf '%s' "$boot" | sed 's/p\?[0-9]*$//')
+
+lsblk -dnbo NAME,SIZE,MODEL,TYPE,RM 2>/dev/null | awk -v boot="$bootdisk" '
+  BEGIN { printf("[") }
+  $NF ~ /^[01]$/ && $(NF-1) == "disk" {
+    dev = "/dev/" $1
+    removable = $NF
+    model = ""
+    for (i = 3; i < NF - 1; i++) model = model (i > 3 ? " " : "") $i
+    printf("%s{\"dev\":\"%s\",\"size\":%s,\"model\":\"%s\",\"removable\":%s,\"isBoot\":%s}",
+           (n++ ? "," : ""), dev, $2, model, (removable == 1 ? "true" : "false"),
+           (dev == boot ? "true" : "false"))
   }
-  BEGIN { printf("[") } END { printf("]") }'
+  END { printf("]") }'

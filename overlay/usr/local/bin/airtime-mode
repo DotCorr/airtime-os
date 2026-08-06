@@ -1,0 +1,23 @@
+#!/bin/sh
+# Is this machine running from the USB stick, or installed on its own disk?
+#
+# One answer, in one place, because several things depend on it and they were
+# not agreeing: the settings panel hides "Install on this computer's disk" when
+# it thinks it is already installed, and the nightly security updater skips
+# patching when it thinks it is on removable media.
+#
+# The previous test looked for a tmpfs root, which is how Alpine's live image
+# looked. Debian's live-boot mounts root as an overlay instead, so every Debian
+# build has been calling itself "installed" while running off a stick -- which
+# is exactly why the install option vanished.
+set -u
+
+# live-boot's own marker: the mounted boot medium. Present only on live media.
+[ -d /run/live/medium ] && { echo live; exit 0; }
+
+case "$(awk '$2 == "/" { print $3; exit }' /proc/mounts)" in
+  overlay|aufs|tmpfs|squashfs) echo live; exit 0 ;;
+esac
+
+# A writable root on real block storage is an installation.
+echo disk

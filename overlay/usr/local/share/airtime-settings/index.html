@@ -113,6 +113,19 @@
           <option value="1.75">175%</option>
           <option value="2">200%</option>
         </select></div>
+      <div class="row"><span>Brightness<br><small style="color:rgba(255,255,255,0.4)" id="bright-note">An ad competes with daylight — brightest is usually right.</small></span>
+        <span style="display:flex;align-items:center;gap:12px;min-width:220px">
+          <input id="bright" type="range" min="10" max="100" step="5" value="100"
+                 oninput="brightPreview(this.value)" onchange="setBrightness(this.value)" style="flex:1">
+          <span id="bright-val" style="min-width:3.2em;text-align:right">100%</span>
+        </span></div>
+      <div class="row"><span>Rotation<br><small style="color:rgba(255,255,255,0.4)">For screens mounted on their side.</small></span>
+        <select id="rot-sel" onchange="setRotation(this.value)">
+          <option value="normal">Landscape</option>
+          <option value="left">Portrait (left)</option>
+          <option value="right">Portrait (right)</option>
+          <option value="inverted">Upside down</option>
+        </select></div>
     </div>
 
     <div class="section">
@@ -251,6 +264,39 @@ refreshCurrent(); setInterval(refreshCurrent, 8000);
 const APP = "https://airtime.dotcorr.com/tv";
 function gotoApp() { location.href = APP + "?airtimeos=1"; }
 
+// Brightness is the setting that decides whether an ad gets looked at, so it
+// defaults to the panel's maximum and only ever moves because a venue asked.
+// The slider shows its value while dragging but only writes on release: each
+// write touches the backlight and rewrites the config on disk.
+function brightPreview(v) {
+  document.getElementById("bright-val").textContent = v + "%";
+}
+async function setBrightness(v) {
+  const r = await (await fetch("/cgi-bin/display", { method: "POST", body: JSON.stringify({ brightness: Number(v) }) })).json();
+  applyDisplay(r);
+}
+async function setRotation(v) {
+  const r = await (await fetch("/cgi-bin/display", { method: "POST", body: JSON.stringify({ rotation: v }) })).json();
+  applyDisplay(r);
+}
+function applyDisplay(d) {
+  if (!d) return;
+  document.getElementById("bright").value = d.brightness;
+  document.getElementById("bright-val").textContent = d.brightness + "%";
+  document.getElementById("rot-sel").value = d.rotation || "normal";
+  // Most desk monitors expose no backlight over HDMI. Say so rather than
+  // leaving a slider that appears to work and changes nothing.
+  if (d.hardware === false) {
+    document.getElementById("bright-note").textContent =
+      "This screen has no software brightness control — use the buttons on the monitor.";
+    document.getElementById("bright").disabled = true;
+  }
+}
+async function loadDisplay() {
+  try { applyDisplay(await (await fetch("/cgi-bin/display")).json()); } catch {}
+}
+loadDisplay();
+
 async function rebootNow() {
   document.getElementById("status").textContent = "Restarting…";
   await fetch("/cgi-bin/power", { method: "POST", body: "reboot" });
@@ -290,15 +336,33 @@ async function showDisks() {
   const disks = await (await fetch("/cgi-bin/disks")).json();
   const el = document.getElementById("disk-list");
   el.innerHTML = "";
-  disks.filter((d) => !d.isBoot).forEach((d) => {
+  // Naming the disk is the whole safety mechanism here: this erases it, and
+  // "sda" means nothing to the person standing in front of the screen. Show the
+  // model and the size, and say plainly which one they are running from.
+  const targets = disks.filter((d) => !d.isBoot);
+  targets.forEach((d) => {
     const b = document.createElement("button");
     b.className = "btn2 danger";
     b.style.cssText = "display:block;width:100%;margin-top:8px;text-align:left";
-    b.textContent = `Erase ${d.dev} (${(d.size / 1e9).toFixed(0)} GB ${d.model || ""}) and install`;
+    b.textContent =
+      `Erase ${d.model || "disk"} — ${(d.size / 1e9).toFixed(0)} GB${d.removable ? ", removable" : ""} (${d.dev}) and install AirtimeOS`;
     b.onclick = () => install(d.dev, b);
     el.appendChild(b);
   });
-  if (!el.children.length) el.textContent = "No other disks found.";
+  const self = disks.find((d) => d.isBoot);
+  if (self) {
+    const note = document.createElement("p");
+    note.style.cssText = "margin-top:10px;color:rgba(255,255,255,0.4);font-size:13px";
+    note.textContent =
+      `Running from ${self.model || self.dev} (${(self.size / 1e9).toFixed(0)} GB) — that one is left alone.`;
+    el.appendChild(note);
+  }
+  if (!targets.length) {
+    const none = document.createElement("p");
+    none.style.cssText = "margin-top:10px;color:rgba(255,255,255,0.55);font-size:14px";
+    none.textContent = "No other disk found to install onto — this machine has only the drive it booted from.";
+    el.appendChild(none);
+  }
 }
 let confirmDev = null;
 async function install(dev, btn) {

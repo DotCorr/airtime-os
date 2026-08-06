@@ -1,0 +1,17 @@
+#!/bin/sh
+echo "Content-Type: application/json"
+echo "Access-Control-Allow-Origin: *"
+echo "Access-Control-Allow-Private-Network: true"
+echo "Access-Control-Allow-Headers: *"
+echo
+if [ "${REQUEST_METHOD:-GET}" = "GET" ]; then
+  /usr/local/bin/airtime-display get
+  exit 0
+fi
+read -r body
+b=$(printf '%s' "$body" | sed -n 's/.*"brightness":\([0-9]*\).*/\1/p')
+r=$(printf '%s' "$body" | sed -n 's/.*"rotation":"\([a-z]*\)".*/\1/p')
+/usr/local/bin/airtime-display set "${b:-}" "${r:-}" >/dev/null 2>&1
+# answer with what the panel actually ended up at, not what was asked for: a
+# machine with no backlight control must not report a change it could not make
+/usr/local/bin/airtime-display get

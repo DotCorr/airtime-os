@@ -12,7 +12,7 @@ eth=down
 nmcli -t -f DEVICE,TYPE,STATE dev 2>/dev/null | awk -F: '$2=="ethernet" && $3=="connected"{exit 1}' || eth=up
 conn=$(nmcli networking connectivity 2>/dev/null || echo unknown)
 ver=$(cat /etc/airtime-release 2>/dev/null || echo dev)
-mode=disk; grep -q ' / tmpfs ' /proc/mounts && mode=live
+mode=$(/usr/local/bin/airtime-mode 2>/dev/null || echo disk)
 auto=on; [ -f /etc/airtime-noautoupdate ] && auto=off
 sec_last=$(cat /var/lib/airtime/last-security-update 2>/dev/null | cut -c1-16)
 sec_reboot=no; [ -f /var/lib/airtime/reboot-required ] && sec_reboot=yes

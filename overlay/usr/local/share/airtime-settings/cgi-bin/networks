@@ -2,9 +2,23 @@
 rfkill unblock wifi >/dev/null 2>&1
 nmcli radio wifi on >/dev/null 2>&1
 echo "Content-Type: application/json"; echo
+# nmcli lists one row per radio, not per network: a router broadcasting the same
+# name on 2.4 and 5 GHz appears twice, and a venue with mesh points appears once
+# per node. The owner sees their own network listed three times and cannot tell
+# which one to tap. Collapse by name and keep the strongest sighting — that is
+# the one NetworkManager will associate with anyway.
 nmcli -t -f SSID,SIGNAL,SECURITY dev wifi list --rescan auto 2>/dev/null | awk -F: '
-  BEGIN { print "[" ; first=1 }
-  $1 != "" { if (!first) printf(","); first=0
-    gsub(/"/, "\\\"", $1)
-    printf("{\"ssid\":\"%s\",\"signal\":%s,\"security\":\"%s\"}", $1, $2, $3) }
-  END { print "]" }'
+  $1 != "" {
+    ssid = $1
+    if (!(ssid in best) || $2 + 0 > best[ssid]) { best[ssid] = $2 + 0; sec[ssid] = $3 }
+    if (!(ssid in seen)) { order[++n] = ssid; seen[ssid] = 1 }
+  }
+  END {
+    print "["
+    for (i = 1; i <= n; i++) {
+      s = order[i]
+      gsub(/"/, "\\\"", s)
+      printf("%s{\"ssid\":\"%s\",\"signal\":%d,\"security\":\"%s\"}", (i > 1 ? "," : ""), s, best[order[i]], sec[order[i]])
+    }
+    print "]"
+  }'

@@ -12,6 +12,10 @@ xset s off -dpms s noblank 2>/dev/null || true
 # native panel mode — the fix for letterboxed, blurry output
 out=$(xrandr 2>/dev/null | awk '/ connected/ {print $1; exit}')
 [ -n "$out" ] && xrandr --output "$out" --auto 2>/dev/null || true
+# Brightness, rotation and anything else the venue has set. Applied here rather
+# than by a service because it needs X, and applied on every session start so a
+# screen that lost power comes back looking exactly as it was left.
+/usr/local/bin/airtime-display apply 2>/dev/null || true
 xrandr > /tmp/airtime-display.txt 2>&1
 unclutter -idle 1 -root >/dev/null 2>&1 &
 matchbox-window-manager -use_titlebar no -use_cursor no >/dev/null 2>&1 &

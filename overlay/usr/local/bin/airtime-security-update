@@ -18,7 +18,7 @@ say() { echo "[security-update] $*"; }
 
 # Live media keeps the whole filesystem in RAM. An upgrade there is discarded
 # at the next power cut, having cost the venue the bandwidth for nothing.
-if grep -q ' / tmpfs ' /proc/mounts; then
+if [ "$(/usr/local/bin/airtime-mode 2>/dev/null || echo disk)" = live ]; then
   say "running from USB — nothing to patch persistently"
   exit 0
 fi

@@ -50,3 +50,7 @@ lightdm-gtk-greeter
 pciutils
 usbutils
 unattended-upgrades
+e2fsprogs
+util-linux
+grub-common
+grub2-common

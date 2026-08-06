@@ -4,8 +4,14 @@ echo "Access-Control-Allow-Origin: *"
 echo "Access-Control-Allow-Private-Network: true"
 echo "Access-Control-Allow-Headers: *"
 echo
-log=$(tail -c 600 /tmp/airtime-install.log 2>/dev/null | tr '"' "'" | tr '\n' ' ')
+log=/tmp/airtime-install.log
+last=$(grep '^STEP ' "$log" 2>/dev/null | tail -1)
+pct=$(printf '%s' "$last" | awk '{print $2}')
+msg=$(printf '%s' "$last" | cut -d' ' -f3- | tr '"' "'")
+tailtext=$(tail -c 600 "$log" 2>/dev/null | tr '"' "'" | tr '\n' ' ')
 running=false
 [ -f /tmp/airtime-install.pid ] && kill -0 "$(cat /tmp/airtime-install.pid)" 2>/dev/null && running=true
-done=false; grep -q AIRTIME_INSTALL_DONE /tmp/airtime-install.log 2>/dev/null && done=true
-printf '{"running":%s,"done":%s,"log":"%s"}' "$running" "$done" "$log"
+done=false; grep -q AIRTIME_INSTALL_DONE "$log" 2>/dev/null && done=true
+failed=false; grep -q AIRTIME_INSTALL_FAILED "$log" 2>/dev/null && failed=true
+printf '{"running":%s,"done":%s,"failed":%s,"percent":%s,"message":"%s","log":"%s"}' \
+  "$running" "$done" "$failed" "${pct:-0}" "$msg" "$tailtext"

@@ -141,7 +141,7 @@
         <button class="btn2 danger" onclick="showDisks()">Install…</button>
       </div>
       <div id="disk-list"></div>
-      <div id="install-bar" class="bar hide"><div></div></div>
+      <div id="install-bar" class="bar determinate hide"><div></div></div>
       <div id="install-progress" class="status"></div>
       <div id="install-log" class="log"></div>
     </div>
@@ -382,19 +382,29 @@ async function install(dev, btn) {
   document.getElementById("disk-list").innerHTML = "";
   document.getElementById("install-bar").classList.remove("hide");
   document.getElementById("install-progress").textContent = "Installing…";
+  // Copying the filesystem takes minutes on a slow external disk. A bar that
+  // paces for that long looks stuck, so the installer reports real stages and
+  // this draws them.
+  const bar = document.getElementById("install-bar");
+  const barFill = bar.firstElementChild;
   const poll = setInterval(async () => {
     const st = await (await fetch("/cgi-bin/install-status")).json();
-    document.getElementById("install-log").textContent = st.log.slice(-140);
+    document.getElementById("install-log").textContent = (st.log || "").slice(-140);
+    barFill.style.width = (st.percent || 0) + "%";
+    if (st.message && !st.done && !st.failed) {
+      document.getElementById("install-progress").textContent = st.message;
+    }
     if (st.done) {
-      document.getElementById("install-bar").classList.add("hide");
+      bar.classList.add("hide");
       document.getElementById("install-progress").textContent = "Installed. Remove the USB stick and restart this computer.";
       document.getElementById("install-log").textContent = "";
-    } else if (!st.running) {
-      document.getElementById("install-bar").classList.add("hide");
-      document.getElementById("install-progress").textContent = "Install failed — details below.";
+    } else if (st.failed || !st.running) {
+      bar.classList.add("hide");
+      document.getElementById("install-progress").textContent =
+        st.message ? "Install failed — " + st.message : "Install failed — details below.";
     }
-    if (st.done || !st.running) clearInterval(poll);
-  }, 3000);
+    if (st.done || st.failed || !st.running) clearInterval(poll);
+  }, 2000);
 }
 async function toggleAuto() {
   const r = await (await fetch("/cgi-bin/update-toggle", { method: "POST" })).json();

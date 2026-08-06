@@ -1,48 +1,148 @@
 #!/bin/sh
-# Installs the currently-running live system onto an internal disk (sys mode),
-# carries over Wi-Fi + browser session, and keeps the silent branded boot.
-set -e
-disk="$1"
-[ -b "$disk" ] || { echo "no such disk: $disk"; exit 1; }
-if grep -q "^$disk" /proc/mounts; then
-  echo "refusing: $disk is the boot/data media"; exit 1
-fi
-echo "== installing AirtimeOS to $disk (everything on it will be erased) =="
-# the ISO ships the kernel as boot files, not as a package — installs pull it
-# from the network repos, so require connectivity up front with a clear error
-if ! wget -q --spider http://dl-cdn.alpinelinux.org/alpine/v3.20/main/x86_64/APKINDEX.tar.gz 2>/dev/null; then
-  echo "ERROR: installing needs an internet connection (packages are fetched during install)"
-  exit 1
-fi
-grep -q dl-cdn /etc/apk/repositories 2>/dev/null || {
-  echo "http://dl-cdn.alpinelinux.org/alpine/v3.20/main" >> /etc/apk/repositories
-  echo "http://dl-cdn.alpinelinux.org/alpine/v3.20/community" >> /etc/apk/repositories
-}
-apk update -q || true
-export ERASE_DISKS="$disk"
-setup-disk -m sys -s 0 -q "$disk"
+# Install the running system onto a disk so the machine boots on its own.
+#
+# This was written for Alpine and never moved with the image: it called
+# setup-disk, apk and update-extlinux, none of which exist here, and it checked
+# an Alpine mirror for connectivity. On the Debian image it could not work at
+# all — it died at /etc/apk/repositories before touching the disk.
+#
+# What replaces it is the ordinary Debian way to turn a live system into an
+# installed one: partition, copy the running filesystem, remove the live-boot
+# machinery so the initramfs stops expecting removable media, and install a
+# bootloader for whichever firmware this machine actually has. Nothing is
+# downloaded — everything needed is already in the image, which matters because
+# the venue's network is often the thing being set up next.
+set -eu
 
-# post-install fixes inside the new root
-part=$(lsblk -nrpo NAME,TYPE "$disk" | awk '$2=="part"{p=$1} END{print p}')
+disk="${1:-}"
 mnt=/tmp/airtime-instroot
+
+step() { printf 'STEP %s %s\n' "$1" "$2"; }
+die()  { printf 'STEP 100 %s\nAIRTIME_INSTALL_FAILED\n' "$1"; exit 1; }
+
+cleanup() {
+  for d in /dev/pts /dev /proc /sys /run /boot/efi ""; do
+    umount -l "$mnt$d" 2>/dev/null || true
+  done
+}
+trap cleanup EXIT
+
+[ -b "$disk" ] || die "No such disk: $disk"
+
+# Never install onto the medium we are running from. The disks endpoint already
+# hides it, but this is the last point where a mistake is still recoverable.
+bootsrc=""
+for mp in /run/live/medium /lib/live/mount/medium; do
+  [ -d "$mp" ] && bootsrc=$(awk -v m="$mp" '$2 == m { print $1; exit }' /proc/mounts) && break
+done
+[ -z "$bootsrc" ] && bootsrc=$(awk '$2 == "/" { print $1; exit }' /proc/mounts)
+bootdisk=$(printf '%s' "$bootsrc" | sed 's/p\?[0-9]*$//')
+[ "$disk" = "$bootdisk" ] && die "That is the disk this screen is running from."
+
+echo "== installing AirtimeOS to $disk (everything on it will be erased) =="
+
+# EFI or BIOS decides the whole partition layout, so establish it first.
+if [ -d /sys/firmware/efi ]; then firmware=efi; else firmware=bios; fi
+echo "firmware: $firmware"
+
+step 5 "Preparing $disk…"
+for p in $(awk -v d="$disk" '$1 ~ "^"d { print $1 }' /proc/mounts); do
+  umount "$p" 2>/dev/null || true
+done
+swapoff -a 2>/dev/null || true
+wipefs -a "$disk" >/dev/null 2>&1 || true
+
+# GPT with a BIOS boot partition as well as an ESP: one layout that boots on
+# either firmware, so a disk moved to another machine still starts.
+parted -s "$disk" mklabel gpt
+parted -s "$disk" mkpart bios_grub 1MiB 1
+parted -s "$disk" set 1 bios_grub on
+parted -s "$disk" mkpart ESP fat32 3MiB 515MiB
+parted -s "$disk" set 2 esp on
+parted -s "$disk" mkpart root ext4 515MiB 100%
+partprobe "$disk" 2>/dev/null || true
+sleep 2
+
+case "$disk" in
+  *nvme*|*mmcblk*|*loop*) esp="${disk}p2"; root="${disk}p3" ;;
+  *)                      esp="${disk}2";  root="${disk}3"  ;;
+esac
+[ -b "$esp" ] && [ -b "$root" ] || die "The disk did not come back with the expected partitions."
+
+step 12 "Formatting…"
+mkfs.vfat -F32 -n AIRTIME-ESP "$esp" >/dev/null 2>&1 || die "Could not format the boot partition."
+mkfs.ext4 -F -q -L airtimeos "$root" >/dev/null 2>&1 || die "Could not format the main partition."
+
+step 18 "Copying the system — this is the long part…"
 mkdir -p "$mnt"
-mount "$part" "$mnt"
-# setup-disk reinstalls packages and carries /etc — but not /usr/local,
-# which is where the entire kiosk lives
-mkdir -p "$mnt/usr/local"
-cp -a /usr/local/. "$mnt/usr/local/"
-# silent boot on the installed system too
-sed -i 's/^default_kernel_opts=.*/default_kernel_opts="quiet loglevel=1 vt.global_cursor_default=0 splash"/' \
-  "$mnt/etc/update-extlinux.conf" 2>/dev/null || true
-chroot "$mnt" update-extlinux 2>/dev/null || true
-# carry the session with us: Wi-Fi profiles + browser state from the live stick
-if [ -d /var/airtime-data/nm ]; then
-  cp -a /var/airtime-data/nm/. "$mnt/etc/NetworkManager/system-connections/" 2>/dev/null || true
+mount "$root" "$mnt" || die "Could not mount the new disk."
+mkdir -p "$mnt/boot/efi"
+mount "$esp" "$mnt/boot/efi" || die "Could not mount the new boot partition."
+
+# The live root is an overlay, so copying from / gives the merged view: the
+# base image plus everything this screen has been configured with. That is
+# exactly what should land on the disk.
+rsync -aHAXx --numeric-ids \
+  --exclude=/proc/ --exclude=/sys/ --exclude=/dev/ --exclude=/run/ \
+  --exclude=/tmp/ --exclude=/mnt/ --exclude=/media/ --exclude=/lost+found \
+  --exclude=/var/tmp/ --exclude=/boot/efi/ \
+  / "$mnt/" 2>/dev/null || die "Copying the system failed — the disk may be too small or failing."
+
+step 70 "Setting up boot…"
+mkdir -p "$mnt/proc" "$mnt/sys" "$mnt/dev" "$mnt/run" "$mnt/tmp" "$mnt/media" "$mnt/mnt"
+chmod 1777 "$mnt/tmp"
+
+root_uuid=$(blkid -s UUID -o value "$root")
+esp_uuid=$(blkid -s UUID -o value "$esp")
+cat > "$mnt/etc/fstab" <<EOF
+# Written by the AirtimeOS installer.
+UUID=$root_uuid  /          ext4  errors=remount-ro,noatime  0 1
+UUID=$esp_uuid   /boot/efi  vfat  umask=0077                 0 1
+tmpfs            /tmp       tmpfs defaults,nosuid,nodev      0 0
+EOF
+
+mount --bind /dev  "$mnt/dev"
+mount --bind /proc "$mnt/proc"
+mount --bind /sys  "$mnt/sys"
+mount -t devpts devpts "$mnt/dev/pts" 2>/dev/null || true
+
+# live-boot's initramfs hunts for removable media holding a squashfs. Left in
+# place, the installed disk boots looking for the USB stick that is no longer
+# there. Purging works offline because the packages are already unpacked.
+chroot "$mnt" /bin/sh -c '
+  export DEBIAN_FRONTEND=noninteractive
+  apt-get purge -y live-boot live-boot-initramfs-tools live-config \
+    live-config-systemd live-tools >/dev/null 2>&1 || true
+  rm -f /etc/initramfs-tools/conf.d/live* 2>/dev/null || true
+' || true
+
+step 82 "Building the boot image…"
+chroot "$mnt" update-initramfs -u -k all >/dev/null 2>&1 || die "Could not build the boot image."
+
+step 88 "Installing the bootloader…"
+if [ "$firmware" = efi ]; then
+  chroot "$mnt" grub-install --target=x86_64-efi --efi-directory=/boot/efi \
+    --bootloader-id=AirtimeOS --removable --recheck >/dev/null 2>&1 ||
+    die "Could not install the EFI bootloader."
 fi
-if [ -d /var/airtime-data/kiosk-config ]; then
-  mkdir -p "$mnt/home/kiosk/.config"
-  cp -a /var/airtime-data/kiosk-config/. "$mnt/home/kiosk/.config/" 2>/dev/null || true
-  chroot "$mnt" chown -R kiosk:kiosk /home/kiosk 2>/dev/null || true
-fi
-umount "$mnt"
-echo "AIRTIME_INSTALL_DONE — remove the USB stick and reboot"
+# Always lay down the BIOS bootloader too when the layout allows it, so the
+# disk still boots if it is moved to an older machine.
+chroot "$mnt" grub-install --target=i386-pc --recheck "$disk" >/dev/null 2>&1 || true
+chroot "$mnt" update-grub >/dev/null 2>&1 || die "Could not write the boot menu."
+
+step 94 "Carrying over your settings…"
+# Wi-Fi, screen pairing, brightness: everything this screen was configured with
+# must survive the move, or the owner sets it all up a second time.
+for src in /etc/NetworkManager/system-connections /etc/airtime; do
+  [ -d "$src" ] && mkdir -p "$mnt$src" && cp -a "$src/." "$mnt$src/" 2>/dev/null || true
+done
+for f in /etc/airtime-scale /etc/airtime-noautoupdate; do
+  [ -f "$f" ] && cp -a "$f" "$mnt$f" 2>/dev/null || true
+done
+[ -d /home/kiosk ] && cp -a /home/kiosk/. "$mnt/home/kiosk/" 2>/dev/null || true
+chroot "$mnt" chown -R kiosk:kiosk /home/kiosk 2>/dev/null || true
+chroot "$mnt" systemctl enable airtime-security-update.timer >/dev/null 2>&1 || true
+
+sync
+step 100 "Installed."
+echo "AIRTIME_INSTALL_DONE — remove the USB stick and restart this computer"

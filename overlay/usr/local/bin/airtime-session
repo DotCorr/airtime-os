@@ -29,7 +29,16 @@ grep -qi hypervisor /proc/cpuinfo && flags="$flags --remote-debugging-port=9222 
 
 # Chromium dies -> bring it straight back; the session itself is supervised by
 # the display manager, so we never re-implement session recovery either.
+#
+# Language is resolved *inside* the loop (files only — manual choice, then the
+# cached geo-IP detection, then English; never the network) so that applying a
+# new language from the settings panel is nothing more than ending the browser:
+# the respawn relaunches it with the new --lang, exactly how updates already
+# restart the session. The web app reads navigator.languages, so these two
+# flags are all the wiring the whole screen needs.
 while true; do
-  chromium $flags "$SETTINGS_URL/boot.html#$APP_URL|$SETTINGS_URL" >>/tmp/kiosk.log 2>&1
+  lang=$(/usr/local/bin/airtime-lang resolve 2>/dev/null || echo en)
+  chromium $flags --lang="$lang" --accept-lang="$lang,en" \
+    "$SETTINGS_URL/boot.html#$APP_URL|$SETTINGS_URL" >>/tmp/kiosk.log 2>&1
   sleep 2
 done

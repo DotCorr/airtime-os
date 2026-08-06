@@ -1,6 +1,10 @@
 #!/bin/sh
 # Local settings server (Wi-Fi, install, updates) — root, loopback only.
 set -u
+# Refresh the geo-IP language cache in the background. This runs here rather
+# than in the session because the cache lives in /var/lib/airtime (root) and
+# because boot must never wait on it — the session only ever reads the cache.
+/usr/local/bin/airtime-lang detect >/dev/null 2>&1 &
 BB=busybox
 command -v busybox-extras >/dev/null 2>&1 && BB=busybox-extras
 exec "$BB" httpd -f -p 127.0.0.1:8800 -h /usr/local/share/airtime-settings

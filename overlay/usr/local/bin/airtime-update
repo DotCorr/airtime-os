@@ -57,9 +57,20 @@ step 85 "Installing security patches…"
 # that has already succeeded.
 /usr/local/bin/airtime-security-update >/dev/null 2>&1 || true
 
+# A stick can update itself -- the image boots with persistence, so what lands
+# in /usr/local survives a reboot. Without a persistence partition it still
+# applies to the running session, and saying so is better than refusing: the
+# alternative was that fixing a stick meant flashing it again.
+note=""
+if [ "$(/usr/local/bin/airtime-mode 2>/dev/null || echo disk)" = live ]; then
+  if [ -z "$(ls -A /run/live/persistence 2>/dev/null)" ]; then
+    note=" This USB stick has no saved-settings partition, so this update lasts until the next restart."
+  fi
+fi
+
 step 95 "Restarting the screen — this takes a few seconds…"
 sleep 2
-echo "updated to $(cat /etc/airtime-release 2>/dev/null || echo "$latest")"
+echo "updated to $(cat /etc/airtime-release 2>/dev/null || echo "$latest")$note"
 echo AIRTIME_UPDATE_DONE
 
 # Last: ending the browser makes the session's respawn loop start it again on

@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Airtime — screen settings</title>
+<title data-i18n="title">Airtime — screen settings</title>
+<script src="/i18n.js"></script>
 <style>
   * { margin: 0; box-sizing: border-box; }
   body { background: #000; color: #fff; font-family: Inter, sans-serif; min-height: 100vh;
@@ -75,70 +76,75 @@
       <svg class="dome" viewBox="0 0 256 256"><path fill="#FB5334" d="M32 112a96 96 0 0 1 192 0H32Z"/><path fill="#fff" d="M80 128h32v32h32v-32h32v48h-32v40h-32v-40H80v-48Z"/><path fill="#FB5334" d="M112 228h32v10h-32z"/></svg>
       <strong style="font-size:1.2rem">Airtime</strong>
     </div>
-    <h1>Connect this screen to the internet</h1>
-    <p class="sub">Pick your Wi-Fi. Once connected, this screen sets itself up — you'll just scan a QR code with your phone.</p>
+    <h1 data-i18n="connectTitle">Connect this screen to the internet</h1>
+    <p class="sub" data-i18n="connectSub">Pick your Wi-Fi. Once connected, this screen sets itself up — you'll just scan a QR code with your phone.</p>
     <div class="row" id="current-row" style="display:none"><span id="current-ssid"></span>
-      <button class="btn2" onclick="forget()">Forget</button></div>
+      <button class="btn2" onclick="forget()" data-i18n="forget">Forget</button></div>
     <div id="nets">Scanning…</div>
     <div id="pw">
       <div class="pw-wrap">
-        <input id="psk" type="password" placeholder="Wi-Fi password" />
+        <input id="psk" type="password" placeholder="Wi-Fi password" data-i18n-ph="wifiPassword" />
         <button class="eye" onclick="toggleEye('psk', this)" aria-label="Show password"></button>
       </div>
-      <button onclick="connect()">Connect</button>
+      <button onclick="connect()" data-i18n="connect">Connect</button>
     </div>
     <div class="row" style="margin-top:14px">
-      <button class="btn2" onclick="scan()">Rescan</button>
-      <button class="btn2" onclick="toggleHidden()">Join hidden network</button>
-      <button class="btn2" onclick="oskToggle()">Keyboard</button>
+      <button class="btn2" onclick="scan()" data-i18n="rescan">Rescan</button>
+      <button class="btn2" onclick="toggleHidden()" data-i18n="joinHidden">Join hidden network</button>
+      <button class="btn2" onclick="oskToggle()" data-i18n="keyboard">Keyboard</button>
     </div>
     <div id="hidden-form" class="hide" style="margin-top:14px">
-      <input id="hidden-ssid" placeholder="Network name (SSID)" style="margin-bottom:10px" />
+      <input id="hidden-ssid" placeholder="Network name (SSID)" data-i18n-ph="networkName" style="margin-bottom:10px" />
       <div class="pw-wrap">
-        <input id="hidden-psk" type="password" placeholder="Password (leave empty if open)" />
+        <input id="hidden-psk" type="password" placeholder="Password (leave empty if open)" data-i18n-ph="passwordOptional" />
         <button class="eye" onclick="toggleEye('hidden-psk', this)" aria-label="Show password"></button>
       </div>
-      <button onclick="connectHidden()">Connect to hidden network</button>
+      <button onclick="connectHidden()" data-i18n="connectHidden">Connect to hidden network</button>
     </div>
     <div class="status" id="status"></div>
     <div class="adapter hide" id="wifi-adapter"></div>
 
     <div class="section">
-      <h2>Display &amp; input</h2>
-      <div class="row"><span>On-screen keyboard</span>
-        <button class="btn2" onclick="oskToggle()">Show / hide</button></div>
-      <div class="row"><span>Display</span><span id="disp-info">–</span></div>
-      <div class="row"><span>Display scaling<br><small style="color:rgba(255,255,255,0.4)">Applies instantly.</small></span>
+      <h2 data-i18n="displayInput">Display &amp; input</h2>
+      <div class="row"><span data-i18n="oskLabel">On-screen keyboard</span>
+        <button class="btn2" onclick="oskToggle()" data-i18n="showHide">Show / hide</button></div>
+      <div class="row"><span data-i18n="display">Display</span><span id="disp-info">–</span></div>
+      <div class="row"><span><span data-i18n="displayScaling">Display scaling</span><br><small style="color:rgba(255,255,255,0.4)" data-i18n="appliesInstantly">Applies instantly.</small></span>
         <select id="scale-sel" onchange="setScale(this.value)">
-          <option value="auto">Auto</option>
+          <option value="auto" data-i18n="auto">Auto</option>
           <option value="1">100%</option>
           <option value="1.25">125%</option>
           <option value="1.5">150%</option>
           <option value="1.75">175%</option>
           <option value="2">200%</option>
         </select></div>
-      <div class="row"><span>Brightness<br><small style="color:rgba(255,255,255,0.4)" id="bright-note">An ad competes with daylight — brightest is usually right.</small></span>
+      <div class="row"><span><span data-i18n="brightness">Brightness</span><br><small style="color:rgba(255,255,255,0.4)" id="bright-note" data-i18n="brightnessNote">An ad competes with daylight — brightest is usually right.</small></span>
         <span style="display:flex;align-items:center;gap:12px;min-width:220px">
           <input id="bright" type="range" min="10" max="100" step="5" value="100"
                  oninput="brightPreview(this.value)" onchange="setBrightness(this.value)" style="flex:1">
           <span id="bright-val" style="min-width:3.2em;text-align:right">100%</span>
         </span></div>
-      <div class="row"><span>Rotation<br><small style="color:rgba(255,255,255,0.4)">For screens mounted on their side.</small></span>
+      <div class="row"><span><span data-i18n="rotation">Rotation</span><br><small style="color:rgba(255,255,255,0.4)" data-i18n="rotationNote">For screens mounted on their side.</small></span>
         <select id="rot-sel" onchange="setRotation(this.value)">
-          <option value="normal">Landscape</option>
-          <option value="left">Portrait (left)</option>
-          <option value="right">Portrait (right)</option>
-          <option value="inverted">Upside down</option>
+          <option value="normal" data-i18n="landscape">Landscape</option>
+          <option value="left" data-i18n="portraitLeft">Portrait (left)</option>
+          <option value="right" data-i18n="portraitRight">Portrait (right)</option>
+          <option value="inverted" data-i18n="upsideDown">Upside down</option>
         </select></div>
+      <div class="row"><span><span data-i18n="language">Language</span><br><small style="color:rgba(255,255,255,0.4)" data-i18n="languageNote">Applies to this screen and the Airtime interface. Changing it restarts the screen for a moment.</small></span>
+        <select id="lang-sel" onchange="setLang(this.value)">
+          <option value="auto">Automatic</option>
+        </select></div>
+      <div class="status" id="lang-status"></div>
     </div>
 
     <div class="section">
-      <h2>System</h2>
-      <div class="row"><span>Version</span><span id="sys-ver">–</span></div>
-      <div class="row"><span>Running from</span><span id="sys-mode">–</span></div>
+      <h2 data-i18n="system">System</h2>
+      <div class="row"><span data-i18n="version">Version</span><span id="sys-ver">–</span></div>
+      <div class="row"><span data-i18n="runningFrom">Running from</span><span id="sys-mode">–</span></div>
       <div class="row hide" id="install-row">
-        <span>Install AirtimeOS on this computer's disk<br><small style="color:rgba(255,255,255,0.4)">Boots on its own afterwards — no USB stick needed. Erases the chosen disk.</small></span>
-        <button class="btn2 danger" onclick="showDisks()">Install…</button>
+        <span><span data-i18n="installTitle">Install AirtimeOS on this computer's disk</span><br><small style="color:rgba(255,255,255,0.4)" data-i18n="installNote">Boots on its own afterwards — no USB stick needed. Erases the chosen disk.</small></span>
+        <button class="btn2 danger" onclick="showDisks()" data-i18n="installBtn">Install…</button>
       </div>
       <div id="disk-list"></div>
       <div id="install-bar" class="bar determinate hide"><div></div></div>
@@ -147,14 +153,14 @@
     </div>
 
     <div class="section">
-      <h2>Updates</h2>
-      <div class="row"><span>Latest available</span><span id="upd-latest">–</span></div>
-      <div class="row"><span>Automatic updates</span><button class="btn2" id="upd-auto" onclick="toggleAuto()">–</button></div>
-      <div class="row"><span>Security patches<br><small style="color:rgba(255,255,255,0.4)">Debian security updates, applied nightly</small></span><span id="sec-last">–</span></div>
-      <div class="row hide" id="sec-reboot-row"><span>A restart will finish applying a patch</span>
-        <button class="btn2" onclick="rebootNow()">Restart now</button></div>
-      <div class="row hide" id="upd-row"><span>A newer AirtimeOS is available</span>
-        <button class="btn2" onclick="applyUpdate()">Update now</button></div>
+      <h2 data-i18n="updates">Updates</h2>
+      <div class="row"><span data-i18n="latestAvailable">Latest available</span><span id="upd-latest">–</span></div>
+      <div class="row"><span data-i18n="autoUpdates">Automatic updates</span><button class="btn2" id="upd-auto" onclick="toggleAuto()">–</button></div>
+      <div class="row"><span><span data-i18n="securityPatches">Security patches</span><br><small style="color:rgba(255,255,255,0.4)" data-i18n="securityNote">Debian security updates, applied nightly</small></span><span id="sec-last">–</span></div>
+      <div class="row hide" id="sec-reboot-row"><span data-i18n="restartFinish">A restart will finish applying a patch</span>
+        <button class="btn2" onclick="rebootNow()" data-i18n="restartNow">Restart now</button></div>
+      <div class="row hide" id="upd-row"><span data-i18n="newerAvailable">A newer AirtimeOS is available</span>
+        <button class="btn2" onclick="applyUpdate()" data-i18n="updateNow">Update now</button></div>
       <div id="upd-bar" class="bar determinate hide"><div></div></div>
       <div class="status" id="upd-status"></div>
     </div>
@@ -180,24 +186,24 @@ async function scan() {
       d.className = "net";
       d.innerHTML = `<span class="name">${n.ssid}${n.security ? LOCK : ""}</span><span class="sig">${n.signal}%</span>`;
       d.onclick = () => { chosen = n.ssid; document.getElementById("pw").style.display = "block";
-        document.getElementById("status").textContent = "Network: " + n.ssid; document.getElementById("psk").focus(); };
+        document.getElementById("status").textContent = t("network", { ssid: n.ssid }); document.getElementById("psk").focus(); };
       el.appendChild(d);
     });
-    if (!nets.length) el.textContent = "No networks found — plug in ethernet or retry.";
-  } catch { document.getElementById("nets").textContent = "Scanning…"; }
+    if (!nets.length) el.textContent = t("noNetworks");
+  } catch { document.getElementById("nets").textContent = t("scanning"); }
 }
 async function doConnect(payload) {
-  document.getElementById("status").textContent = "Connecting…";
+  document.getElementById("status").textContent = t("connecting");
   const body = "ssid=" + encodeURIComponent(payload.ssid || "") +
     "&psk=" + encodeURIComponent(payload.psk || "") +
     "&hidden=" + (payload.hidden ? "1" : "0");
   const r = await (await fetch("/cgi-bin/connect", { method: "POST", body })).json();
   // lead with the plain-language cause; keep the raw reason as a second line
-  let msg = r.ok ? "Connected — starting Airtime…" : (r.hint || r.error || "Connection failed — try again.");
+  let msg = r.ok ? t("connectedStarting") : (r.hint || r.error || t("connectionFailed"));
   if (!r.ok && r.error) msg += "  \u2014 " + r.error;
-  if (!r.ok && typeof r.visible === "number") msg += "  [" + r.visible + " networks visible]";
+  if (!r.ok && typeof r.visible === "number") msg += "  [" + r.visible + "]";
   if (!r.ok && r.psk_len === 0 && (payload.psk || "").length > 0) {
-    msg += " — the password did not reach the system; please report this";
+    msg += " — " + t("pskLost");
   }
   document.getElementById("status").textContent = msg;
   // On failure, name the adapter. If this screen ends up in a support message
@@ -208,9 +214,9 @@ async function doConnect(payload) {
       const st = await (await fetch("/cgi-bin/status")).json();
       const ad = document.getElementById("wifi-adapter");
       if (ad.classList.contains("hide")) {
-        ad.innerHTML = "<b>Still not connecting?</b> Ethernet or a USB Wi-Fi adapter will work immediately." +
-          "<span class=\"chip\">" + (st.wifiDev || "unknown adapter") + " \u00b7 driver " +
-          (st.wifiDrv || "none") + (st.fwMissing ? " \u00b7 missing firmware " + st.fwMissing : "") + "</span>";
+        ad.innerHTML = "<b>" + t("stillNotConnecting") + "</b> " + t("ethernetWorks") +
+          "<span class=\"chip\">" + (st.wifiDev || t("unknownAdapter")) + " \u00b7 " + t("driver") + " " +
+          (st.wifiDrv || "none") + (st.fwMissing ? " \u00b7 " + t("missingFirmware") + " " + st.fwMissing : "") + "</span>";
         ad.classList.remove("hide");
       }
     } catch {}
@@ -228,18 +234,50 @@ function setScale(v) {
   // apply here, tell the kiosk page, then persist — no restart, no lost state
   document.documentElement.style.zoom = v === "auto" ? "" : v;
   try { window.parent.postMessage({ airtimeScale: v }, "*"); } catch (e) {}
-  document.getElementById("status").textContent = "Applied.";
+  document.getElementById("status").textContent = t("applied");
   fetch("/cgi-bin/display-scale", { method: "POST", body: JSON.stringify({ scale: v }) })
-    .then(() => { document.getElementById("status").textContent = "Saved."; })
-    .catch(() => { document.getElementById("status").textContent = "Could not save this setting."; });
+    .then(() => { document.getElementById("status").textContent = t("saved"); })
+    .catch(() => { document.getElementById("status").textContent = t("couldNotSave"); });
 }
+// The language row: "Automatic" names what it detected, the rest are the 14
+// locales under their native labels. Applying saves the choice, retranslates
+// this panel immediately, and restarts the kiosk session (the web app can only
+// pick the language up through Chromium's --lang, which needs a relaunch).
+function fillLangSel() {
+  const sel = document.getElementById("lang-sel");
+  sel.innerHTML = "";
+  const a = document.createElement("option");
+  a.value = "auto";
+  a.textContent = DETECTED ? t("automaticDetected", { lang: NATIVE[DETECTED] || DETECTED }) : t("automatic");
+  sel.appendChild(a);
+  for (const c in NATIVE) {
+    const o = document.createElement("option");
+    o.value = c;
+    o.textContent = NATIVE[c];
+    sel.appendChild(o);
+  }
+  sel.value = CHOSEN || "auto";
+}
+async function setLang(v) {
+  const st = document.getElementById("lang-status");
+  try {
+    const r = await (await fetch("/cgi-bin/lang", { method: "POST", body: JSON.stringify({ lang: v }) })).json();
+    if (!r.ok) { st.textContent = r.error || t("couldNotSave"); return; }
+    CHOSEN = v;
+    LANG = v === "auto" ? (DETECTED || "en") : v;
+    applyI18n();
+    fillLangSel();
+    st.textContent = t("languageSaved");
+  } catch { st.textContent = t("couldNotSave"); }
+}
+initI18n().then(fillLangSel);
 let currentSsid = null;
 async function refreshCurrent() {
   try {
     const st = await (await fetch("/cgi-bin/status")).json();
     currentSsid = st.wifi ? st.wifi.replace(/ \(\d+%\)$/, "") : null;
     document.getElementById("current-row").style.display = currentSsid ? "flex" : "none";
-    if (currentSsid) document.getElementById("current-ssid").textContent = "Connected to " + st.wifi;
+    if (currentSsid) document.getElementById("current-ssid").textContent = t("connectedTo", { wifi: st.wifi });
     // A screen that cannot connect deserves to know whether the problem is
     // the password or the machine. Only speak up when there is no adapter.
     const ad = document.getElementById("wifi-adapter");

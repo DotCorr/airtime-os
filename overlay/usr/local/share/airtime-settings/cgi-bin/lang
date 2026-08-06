@@ -1,0 +1,26 @@
+#!/bin/sh
+echo "Content-Type: application/json"
+echo "Access-Control-Allow-Origin: *"
+echo "Access-Control-Allow-Private-Network: true"
+echo "Access-Control-Allow-Headers: *"
+echo
+if [ "${REQUEST_METHOD:-GET}" = "GET" ]; then
+  # first boot may have raced the network before a detection landed; retry in
+  # the background so the dropdown's "detected" fills in on a later refresh
+  if [ ! -f /var/lib/airtime/lang.detected ]; then
+    ( /usr/local/bin/airtime-lang detect ) >/dev/null 2>&1 &
+  fi
+  /usr/local/bin/airtime-lang get
+  exit 0
+fi
+read -r body
+l=$(printf '%s' "$body" | sed -n 's/.*"lang":"\([a-z]*\)".*/\1/p')
+[ -z "$l" ] && { echo '{"ok":false,"error":"no lang"}'; exit 0; }
+if ! /usr/local/bin/airtime-lang set "$l"; then
+  echo '{"ok":false,"error":"unknown language"}'
+  exit 0
+fi
+echo '{"ok":true}'
+# restart the kiosk session so Chromium relaunches with the new --lang; the
+# session's respawn loop brings it straight back, exactly how updates restart
+( sleep 2; pkill -f "chromium.*--kiosk" ) >/dev/null 2>&1 &

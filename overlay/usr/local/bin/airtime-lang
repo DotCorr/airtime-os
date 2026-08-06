@@ -1,0 +1,104 @@
+#!/bin/sh
+# Language resolution: one answer, in one place, same shape as airtime-display.
+#
+# Order — the same contract every Dotcorr surface follows:
+#   1. the venue's explicit choice (/var/lib/airtime/lang, set from the
+#      settings panel) always wins;
+#   2. otherwise the cached geo-IP detection from the last time the network
+#      was up;
+#   3. otherwise English.
+#
+# Detection is the only part that touches the network and it never runs on the
+# boot path: it is started in the background (by airtime-settingsd) with a hard
+# 3-second timeout per attempt, and it only ever *writes the cache*. A screen
+# that boots offline boots in the language it detected last time, or English —
+# it never waits.
+#
+# The web app inside Chromium detects via navigator.languages, so launching
+# Chromium with --lang/--accept-lang is all the wiring the whole screen needs.
+set -u
+STATE=/var/lib/airtime
+CHOICE=$STATE/lang
+CACHE=$STATE/lang.detected
+
+LANGS="en nl de fr es it pt pl tr ar zh hi ja ru"
+
+valid() {
+  for l in $LANGS; do [ "${1:-}" = "$l" ] && return 0; done
+  return 1
+}
+
+# country → language, mirroring the map the other Dotcorr surfaces use
+map() {
+  case "$1" in
+    NL|BE) echo nl ;;
+    DE|AT|CH|LI) echo de ;;
+    FR|MC|LU) echo fr ;;
+    ES|MX|AR|CO|CL|PE|VE|EC|GT|CU|BO|DO|HN|PY|SV|NI|CR|PA|UY|GQ) echo es ;;
+    IT|SM|VA) echo it ;;
+    PT|BR|AO|MZ|CV|GW|ST) echo pt ;;
+    PL) echo pl ;;
+    TR) echo tr ;;
+    DZ|BH|KM|DJ|EG|IQ|JO|KW|LB|LY|MR|MA|OM|PS|QA|SA|SD|SO|SY|TN|AE|YE) echo ar ;;
+    CN) echo zh ;;
+    IN) echo hi ;;
+    JP) echo ja ;;
+    RU|BY|KZ|KG|TJ|UZ|TM) echo ru ;;
+    *) echo en ;;
+  esac
+}
+
+detected() {
+  d=$(cat "$CACHE" 2>/dev/null)
+  valid "${d:-}" && echo "$d" || echo ""
+}
+
+case "${1:-resolve}" in
+  resolve)
+    # what the session launches Chromium with — files only, never the network
+    c=$(cat "$CHOICE" 2>/dev/null)
+    if valid "${c:-}"; then echo "$c"; exit 0; fi
+    d=$(detected)
+    echo "${d:-en}"
+    ;;
+  detect)
+    # Refresh the geo-IP cache. Two providers, hard timeout, a few patient
+    # retries so a boot that races the network still lands the answer — and
+    # silence about failure: the next boot simply uses the previous cache.
+    i=0
+    while [ "$i" -lt 5 ]; do
+      cc=$(curl -m 3 -fsS 'http://ip-api.com/line/?fields=countryCode' 2>/dev/null | tr -d '[:space:]')
+      case "$cc" in
+        [A-Z][A-Z]) ;;
+        *) cc=$(curl -m 3 -fsS 'https://ipapi.co/country/' 2>/dev/null | tr -d '[:space:]') ;;
+      esac
+      case "$cc" in
+        [A-Z][A-Z])
+          mkdir -p "$STATE"
+          map "$cc" > "$CACHE" 2>/dev/null || true
+          exit 0 ;;
+      esac
+      i=$((i + 1))
+      sleep 15
+    done
+    exit 0
+    ;;
+  get)
+    # everything the settings panel needs, in one JSON answer
+    c=$(cat "$CHOICE" 2>/dev/null)
+    valid "${c:-}" || c=""
+    d=$(detected)
+    e=$("$0" resolve)
+    printf '{"lang":"%s","detected":"%s","effective":"%s"}\n' "${c:-auto}" "${d:-}" "$e"
+    ;;
+  set)
+    # "auto" clears the choice; anything else must be one of the 14 locales
+    l="${2:-auto}"
+    mkdir -p "$STATE"
+    if [ "$l" = "auto" ]; then rm -f "$CHOICE"
+    elif valid "$l"; then echo "$l" > "$CHOICE"
+    else exit 1
+    fi
+    ;;
+esac
+exit 0

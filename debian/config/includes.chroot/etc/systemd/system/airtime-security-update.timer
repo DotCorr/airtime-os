@@ -1,0 +1,13 @@
+[Unit]
+Description=Nightly Debian security patches
+
+[Timer]
+# the small hours, spread across an hour so a venue with several screens does
+# not restart all of them at once
+OnCalendar=*-*-* 03:00:00
+RandomizedDelaySec=3600
+# a screen that was switched off overnight still gets its patches
+Persistent=true
+
+[Install]
+WantedBy=timers.target

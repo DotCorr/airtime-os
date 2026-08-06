@@ -1,0 +1,32 @@
+#!/bin/sh
+# Turn on nightly Debian security patching.
+#
+# The screen is on a stranger's network for years and nobody will ever log into
+# it. Everything else in this image is frozen at build time on purpose; the
+# security suite is the one stream worth taking unattended.
+set -e
+
+# The patches are worthless without a source to fetch them from, and what
+# live-build leaves behind differs between releases (trixie moved to the deb822
+# format). Add the security suite only if nothing already provides it, so this
+# neither duplicates an entry nor silently relies on one being there.
+if grep -rqE "(debian-security|-security )" /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null; then
+  echo "security suite already configured"
+else
+  echo "deb http://deb.debian.org/debian-security trixie-security main contrib non-free non-free-firmware" \
+    > /etc/apt/sources.list.d/airtime-security.list
+  echo "added the security suite"
+fi
+
+# apt ships its own randomised daily timers. Two schedulers would fight over
+# the same lock at unpredictable hours; ours owns the timing so the work lands
+# at night and the browser restart is predictable.
+systemctl mask apt-daily.timer apt-daily-upgrade.timer 2>/dev/null || true
+systemctl disable unattended-upgrades.service 2>/dev/null || true
+
+systemctl enable airtime-security-update.timer
+
+mkdir -p /var/lib/airtime
+
+echo "=== apt sources in the shipped image ==="
+grep -rhE "^deb|^URIs|^Suites" /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null || true

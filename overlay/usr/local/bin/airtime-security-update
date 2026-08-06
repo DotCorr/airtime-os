@@ -1,0 +1,66 @@
+#!/bin/sh
+# Debian security patches, applied without anyone visiting the venue.
+#
+# A screen sits on a stranger's network for years and nobody is going to log
+# into it. Chromium is effectively its whole attack surface, and an unpatched
+# browser pointed at the open internet is the one part of this appliance that
+# genuinely degrades over time.
+#
+# Deliberately narrow: the security suite only, never a distribution upgrade,
+# and never an automatic reboot. A screen that reboots itself in the middle of
+# a booked slot is worse than a screen running last week's kernel.
+set -u
+export DEBIAN_FRONTEND=noninteractive
+STATE=/var/lib/airtime
+mkdir -p "$STATE"
+
+say() { echo "[security-update] $*"; }
+
+# Live media keeps the whole filesystem in RAM. An upgrade there is discarded
+# at the next power cut, having cost the venue the bandwidth for nothing.
+if grep -q ' / tmpfs ' /proc/mounts; then
+  say "running from USB — nothing to patch persistently"
+  exit 0
+fi
+
+# One switch, not two: the Automatic updates control in the settings panel
+# governs this as well as AirtimeOS releases.
+if [ -f /etc/airtime-noautoupdate ]; then
+  say "automatic updates are switched off"
+  exit 0
+fi
+
+# Never let a slow or unreachable mirror hold anything up.
+if ! timeout 300 apt-get update -qq 2>/dev/null; then
+  say "could not reach the Debian mirror; will try again tomorrow"
+  exit 0
+fi
+
+chromium_version() { dpkg-query -W -f='${Version}' chromium 2>/dev/null || echo none; }
+before=$(chromium_version)
+
+timeout 1800 unattended-upgrade -v 2>&1 | tail -40
+date -Is > "$STATE/last-security-update"
+
+after=$(chromium_version)
+
+# Kernel and libc patches only take effect after a reboot, and rebooting a
+# screen is not this script's call to make. Record it so the settings panel
+# can show it and the owner can choose a moment.
+if [ -f /var/run/reboot-required ]; then
+  echo yes > "$STATE/reboot-required"
+  say "a restart is needed to finish applying a patch"
+else
+  rm -f "$STATE/reboot-required"
+fi
+
+# A patched Chromium binary does nothing until the running process is replaced.
+# The session already respawns it on exit, so ending it is the whole update.
+# This runs in the small hours and the screen is black for about two seconds.
+if [ "$before" != "$after" ]; then
+  say "chromium $before -> $after; restarting the browser"
+  pkill -f "chromium.*--kiosk" 2>/dev/null || true
+fi
+
+say "done"
+exit 0

@@ -1,0 +1,12 @@
+[Unit]
+Description=Apply Debian security patches
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/airtime-security-update
+# an appliance must never be taken down by its own maintenance
+TimeoutStartSec=2400
+Nice=10
+IOSchedulingClass=idle

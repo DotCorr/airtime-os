@@ -49,3 +49,4 @@ lightdm
 lightdm-gtk-greeter
 pciutils
 usbutils
+unattended-upgrades

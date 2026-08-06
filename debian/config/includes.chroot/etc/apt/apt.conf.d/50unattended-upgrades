@@ -1,0 +1,23 @@
+// Security patches only. Not stable-updates, not backports, and never a
+// distribution upgrade: this machine's job is to keep showing ads, and the
+// only changes worth taking unattended are the ones that close holes.
+Unattended-Upgrade::Origins-Pattern {
+        "origin=Debian,codename=${distro_codename}-security,label=Debian-Security";
+};
+
+// Never reboot on its own -- a screen restarting mid-booking is worse than a
+// screen running last week's kernel. The settings panel surfaces the need.
+Unattended-Upgrade::Automatic-Reboot "false";
+
+// Nothing here can answer a prompt, so a package asking about a config file
+// must keep the version we shipped rather than block forever.
+Unattended-Upgrade::MinimalSteps "true";
+Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+Unattended-Upgrade::Remove-New-Unused-Dependencies "true";
+Dpkg::Options {
+   "--force-confdef";
+   "--force-confold";
+};
+
+// no mail on an appliance
+Unattended-Upgrade::Mail "";

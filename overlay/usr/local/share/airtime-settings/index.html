@@ -133,6 +133,9 @@
       <h2>Updates</h2>
       <div class="row"><span>Latest available</span><span id="upd-latest">–</span></div>
       <div class="row"><span>Automatic updates</span><button class="btn2" id="upd-auto" onclick="toggleAuto()">–</button></div>
+      <div class="row"><span>Security patches<br><small style="color:rgba(255,255,255,0.4)">Debian security updates, applied nightly</small></span><span id="sec-last">–</span></div>
+      <div class="row hide" id="sec-reboot-row"><span>A restart will finish applying a patch</span>
+        <button class="btn2" onclick="rebootNow()">Restart now</button></div>
       <div class="row hide" id="upd-row"><span>A newer AirtimeOS is available</span>
         <button class="btn2" onclick="applyUpdate()">Update now</button></div>
       <div class="status" id="upd-status"></div>
@@ -194,7 +197,7 @@ async function doConnect(payload) {
       }
     } catch {}
   }
-  if (r.ok) setTimeout(() => location.href = "https://airtime.dotcorr.com/tv", 2500);
+  if (r.ok) setTimeout(gotoApp, 2500);
 }
 function connect() { doConnect({ ssid: chosen, psk: document.getElementById("psk").value }); }
 function connectHidden() {
@@ -240,6 +243,18 @@ async function refreshCurrent() {
   } catch {}
 }
 refreshCurrent(); setInterval(refreshCurrent, 8000);
+// Every exit to the app must carry this flag: it is how the web app learns it
+// is running on a screen rather than in somebody's browser, and it is what
+// turns on the taskbar and the settings gear. Missing it here meant a stick
+// that reached the app through Wi-Fi setup -- the normal first run -- never
+// showed any on-screen chrome at all.
+const APP = "https://airtime.dotcorr.com/tv";
+function gotoApp() { location.href = APP + "?airtimeos=1"; }
+
+async function rebootNow() {
+  document.getElementById("status").textContent = "Restarting…";
+  await fetch("/cgi-bin/power", { method: "POST", body: "reboot" });
+}
 async function forget() {
   if (!currentSsid) return;
   await fetch("/cgi-bin/forget", { method: "POST", body: "ssid=" + encodeURIComponent(currentSsid) });
@@ -257,6 +272,9 @@ async function sysinfo() {
       (st.active || st.fb || "?") + " · panel " + (st.native || "?") + " · driver " + (st.gpu || "?");
     document.getElementById("install-row").classList.toggle("hide", st.mode !== "live");
     document.getElementById("upd-auto").textContent = st.autoupdate === "on" ? "On" : "Off";
+    document.getElementById("sec-last").textContent =
+      st.secLast && st.secLast !== "never" ? st.secLast.replace("T", " ") : (st.mode === "live" ? "not while running from USB" : "not yet");
+    document.getElementById("sec-reboot-row").classList.toggle("hide", st.secReboot !== "yes");
     var sel = document.getElementById("scale-sel");
     if (sel && st.scale) { sel.value = st.scale; if (st.scale !== "auto") document.documentElement.style.zoom = st.scale; }
     const chk = await (await fetch("/cgi-bin/update-check")).json();
@@ -320,8 +338,7 @@ async function applyUpdate() {
 // this page is the standalone fallback, never inside the settings overlay
 if (window.top === window) {
   setInterval(() => {
-    fetch("https://airtime.dotcorr.com/tv", { mode: "no-cors", cache: "no-store" })
-      .then(() => location.href = "https://airtime.dotcorr.com/tv", () => {});
+    fetch(APP, { mode: "no-cors", cache: "no-store" }).then(gotoApp, () => {});
   }, 10000);
 }
 

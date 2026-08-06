@@ -1,8 +1,15 @@
 // Security patches only. Not stable-updates, not backports, and never a
 // distribution upgrade: this machine's job is to keep showing ads, and the
 // only changes worth taking unattended are the ones that close holes.
+// Debian's stock config writes ${distro_codename} here. We rewrote
+// /etc/os-release to say AirtimeOS, and if that variable ever resolves to
+// anything but "trixie" this pattern matches nothing and the machine silently
+// stops patching itself while still reporting success -- the worst possible
+// failure for a security mechanism. The distribution is pinned at build time,
+// so name it, and keep a suite-based pattern alongside as a second route.
 Unattended-Upgrade::Origins-Pattern {
-        "origin=Debian,codename=${distro_codename}-security,label=Debian-Security";
+        "origin=Debian,codename=trixie-security,label=Debian-Security";
+        "origin=Debian,archive=stable-security,label=Debian-Security";
 };
 
 // Never reboot on its own -- a screen restarting mid-booking is worse than a

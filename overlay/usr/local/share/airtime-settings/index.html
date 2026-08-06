@@ -273,7 +273,9 @@ async function sysinfo() {
     document.getElementById("install-row").classList.toggle("hide", st.mode !== "live");
     document.getElementById("upd-auto").textContent = st.autoupdate === "on" ? "On" : "Off";
     document.getElementById("sec-last").textContent =
-      st.secLast && st.secLast !== "never" ? st.secLast.replace("T", " ") : (st.mode === "live" ? "not while running from USB" : "not yet");
+      st.secOk === "no" ? "not configured — report this"
+        : st.secLast && st.secLast !== "never" ? st.secLast.replace("T", " ")
+        : (st.mode === "live" ? "not while running from USB" : "not yet");
     document.getElementById("sec-reboot-row").classList.toggle("hide", st.secReboot !== "yes");
     var sel = document.getElementById("scale-sel");
     if (sel && st.scale) { sel.value = st.scale; if (st.scale !== "auto") document.documentElement.style.zoom = st.scale; }

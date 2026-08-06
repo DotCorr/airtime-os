@@ -16,6 +16,7 @@ mode=disk; grep -q ' / tmpfs ' /proc/mounts && mode=live
 auto=on; [ -f /etc/airtime-noautoupdate ] && auto=off
 sec_last=$(cat /var/lib/airtime/last-security-update 2>/dev/null | cut -c1-16)
 sec_reboot=no; [ -f /var/lib/airtime/reboot-required ] && sec_reboot=yes
+sec_ok=yes; [ -f /var/lib/airtime/security-origin-missing ] && sec_ok=no
 uscale=$(cat /etc/airtime-scale 2>/dev/null || echo auto)
 drv=$(for d in /sys/class/drm/card*/device/driver; do [ -e "$d" ] && basename "$(readlink -f "$d")" && break; done)
 native=$(cat /sys/class/drm/card*-*/modes 2>/dev/null | head -1)
@@ -35,5 +36,5 @@ active=$(sed -n 's/.*current.*/&/p' /tmp/airtime-display.txt 2>/dev/null | head 
 for v in wifi_dev wifi_reason fw_missing; do
   eval "$v=\$(printf '%s' \"\$$v\" | tr -d '\"\\\\' | tr -s ' ')"
 done
-printf '{"battery":%s,"ac":%s,"wifi":"%s","eth":"%s","connectivity":"%s","version":"%s","mode":"%s","autoupdate":"%s","scale":"%s","gpu":"%s","native":"%s","fb":"%s","active":"%s","wifiDev":"%s","wifiIf":"%s","wifiDrv":"%s","fwMissing":"%s","wifiStatus":"%s","wifiReason":"%s","secLast":"%s","secReboot":"%s"}' \
-  "$bat" "$ac" "$wifi" "$eth" "$conn" "$ver" "$mode" "$auto" "$uscale" "${drv:-none}" "${native:-unknown}" "${fb:-unknown}" "${active:-unknown}" "${wifi_dev:-unknown}" "${wifi_if:-none}" "${wifi_drv:-none}" "${fw_missing:-}" "${wifi_status:-unknown}" "${wifi_reason:-}" "${sec_last:-never}" "${sec_reboot:-no}"
+printf '{"battery":%s,"ac":%s,"wifi":"%s","eth":"%s","connectivity":"%s","version":"%s","mode":"%s","autoupdate":"%s","scale":"%s","gpu":"%s","native":"%s","fb":"%s","active":"%s","wifiDev":"%s","wifiIf":"%s","wifiDrv":"%s","fwMissing":"%s","wifiStatus":"%s","wifiReason":"%s","secLast":"%s","secReboot":"%s","secOk":"%s"}' \
+  "$bat" "$ac" "$wifi" "$eth" "$conn" "$ver" "$mode" "$auto" "$uscale" "${drv:-none}" "${native:-unknown}" "${fb:-unknown}" "${active:-unknown}" "${wifi_dev:-unknown}" "${wifi_if:-none}" "${wifi_drv:-none}" "${fw_missing:-}" "${wifi_status:-unknown}" "${wifi_reason:-}" "${sec_last:-never}" "${sec_reboot:-no}" "${sec_ok:-yes}"

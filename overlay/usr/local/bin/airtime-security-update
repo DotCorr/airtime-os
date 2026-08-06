@@ -36,6 +36,17 @@ if ! timeout 300 apt-get update -qq 2>/dev/null; then
   exit 0
 fi
 
+# A patch stream that matches nothing looks exactly like a patch stream with
+# nothing to do. Confirm the security archive is actually visible to apt, and
+# record it when it is not, so the settings panel can say so instead of showing
+# a reassuring timestamp forever.
+if apt-cache policy 2>/dev/null | grep -q "l=Debian-Security"; then
+  rm -f "$STATE/security-origin-missing"
+else
+  say "WARNING: no Debian-Security origin is visible to apt"
+  echo yes > "$STATE/security-origin-missing"
+fi
+
 chromium_version() { dpkg-query -W -f='${Version}' chromium 2>/dev/null || echo none; }
 before=$(chromium_version)
 

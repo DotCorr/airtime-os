@@ -46,6 +46,18 @@ fi
 log "Broadcom wireless $bcm_id"
 echo "device: 14e4:$(printf '%s' "$bcm_id" | sed 's/^0x//')" >> "$state"
 
+# Secure Boot puts the kernel in lockdown, which refuses any module not signed
+# by a key the firmware trusts. DKMS signs wl with a key it generates locally
+# and nothing enrols it, so on a Secure Boot machine wl cannot load at all --
+# and enrolling a key needs a keyboard at the firmware prompt, which an ad
+# screen does not have. The in-tree drivers are signed by Debian and are
+# unaffected, so this only matters for the chips that need wl.
+secureboot() {
+  v=/sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c
+  [ -r "$v" ] || return 1
+  [ "$(od -An -t u1 "$v" 2>/dev/null | awk '{print $5}')" = "1" ]
+}
+
 load_wl() {
   # wl and the in-tree drivers cannot both own the device
   for m in b43 brcmsmac bcma ssb brcmfmac; do rmmod "$m" 2>/dev/null; done
@@ -91,6 +103,10 @@ else
   case "$bcm_id" in
     0x4364|0x4377|0x4425|0x4433)
       reason="This Mac's Wi-Fi needs Apple's own firmware, which cannot legally be included in Linux. Use Ethernet or a USB Wi-Fi adapter." ;;
+    *)
+      if secureboot; then
+        reason="This Wi-Fi chip needs a driver that Secure Boot will not load. Turn Secure Boot off in this machine's firmware settings, or use Ethernet or a USB Wi-Fi adapter."
+      fi ;;
   esac
   printf 'driver: none\nstatus: failed\nreason: %s\n' "$reason" >> "$state"
 fi

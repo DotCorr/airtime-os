@@ -41,6 +41,10 @@
   select { background: #000; border: 1px solid rgba(255,255,255,0.4); color: #fff; padding: 10px 12px; font-size: 0.9rem; }
   .bar { height: 3px; background: rgba(255,255,255,0.12); overflow: hidden; margin-top: 14px; }
   .bar > div { width: 80px; height: 100%; background: #FB5334; animation: slide 1.1s ease-in-out infinite alternate; }
+  /* The install bar cannot know how far along it is, so it paces. An update
+     reports real stages, and a bar that paces while a number is available
+     is a bar that lies. */
+  .bar.determinate > div { animation: none; width: 0; transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1); }
   @keyframes slide { from { transform: translateX(-20px) } to { transform: translateX(560px) } }
   .log { margin-top: 10px; font-size: 0.78rem; color: rgba(255,255,255,0.45); word-break: break-all; min-height: 1.2em; }
   /* on-screen keyboard: viewport-proportional so it reads correctly on any
@@ -151,6 +155,7 @@
         <button class="btn2" onclick="rebootNow()">Restart now</button></div>
       <div class="row hide" id="upd-row"><span>A newer AirtimeOS is available</span>
         <button class="btn2" onclick="applyUpdate()">Update now</button></div>
+      <div id="upd-bar" class="bar determinate hide"><div></div></div>
       <div class="status" id="upd-status"></div>
     </div>
   </div>
@@ -397,7 +402,34 @@ async function toggleAuto() {
 }
 async function applyUpdate() {
   const r = await (await fetch("/cgi-bin/update-apply", { method: "POST" })).json();
-  document.getElementById("upd-status").textContent = r.ok ? "Updating — the screen restarts by itself." : r.error;
+  if (!r.ok) { document.getElementById("upd-status").textContent = r.error; return; }
+  // An update ends by restarting the session, so this screen goes black for a
+  // few seconds. With no progress and no warning that is indistinguishable from
+  // a crash, and the natural reaction is to pull the power part-way through.
+  const bar = document.getElementById("upd-bar");
+  const barFill = bar.firstElementChild;
+  bar.classList.remove("hide");
+  const status = document.getElementById("upd-status");
+  status.textContent = "Starting…";
+  const poll = setInterval(async () => {
+    try {
+      const s = await (await fetch("/cgi-bin/update-status")).json();
+      barFill.style.width = (s.percent || 0) + "%";
+      if (s.message) status.textContent = s.message;
+      if (s.failed) {
+        clearInterval(poll);
+        bar.classList.add("hide");
+        return;
+      }
+      if (s.done) {
+        clearInterval(poll);
+        barFill.style.width = "100%";
+        status.textContent = "Updated. The screen is restarting — it comes back on its own in a few seconds.";
+      }
+    } catch {
+      // the session restarting takes this page with it; that is the success case
+    }
+  }, 1000);
 }
 // if the network comes back by any other path (ethernet plugged in, wifi
 // remembered), leave setup and start the kiosk automatically — but ONLY when

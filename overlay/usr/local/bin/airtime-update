@@ -1,18 +1,68 @@
 #!/bin/sh
-# OS-level OTA for disk installs: pull the latest overlay bundle from GitHub
-# Releases, apply it, upgrade packages, restart the kiosk. The web app itself
-# updates independently (it's a website).
-set -e
-latest=$(wget -qO- https://api.github.com/repos/DotCorr/airtime-os/releases/latest | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p')
-[ -n "$latest" ] || { echo "cannot reach release feed"; exit 1; }
+# OS-level update for disk installs: pull the latest overlay bundle from GitHub
+# Releases, apply it, and restart the screen onto the new code. The web app
+# itself updates on its own, because it is a website.
+#
+# Every stage announces itself. The screen doing the updating is the only screen
+# the owner can see, and it goes black when the session restarts — without a
+# progress bar and a warning that says so, an update is indistinguishable from a
+# crash, and the natural response is to pull the power halfway through.
+#
+# This script was written for Alpine and never moved with the image: it called
+# `apk upgrade`, which does not exist on Debian, and restarted the session by
+# killing `cage` and `airtime-kiosk`, neither of which has existed since LightDM
+# took over the session. So the packages step did nothing and the restart step
+# did nothing.
+set -u
+
+LOG=/tmp/airtime-update.log
+step() { printf 'STEP %s %s\n' "$1" "$2"; }
+fail() { printf 'STEP 100 %s\nAIRTIME_UPDATE_FAILED\n' "$1"; exit 1; }
+
+echo $$ > /tmp/airtime-update.pid
+
+step 5 "Checking for a newer version…"
+latest=$(wget -qO- --timeout=20 https://api.github.com/repos/DotCorr/airtime-os/releases/latest 2>/dev/null |
+         sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p')
+[ -n "$latest" ] || fail "Couldn't reach the update server. Check the network and try again."
+
 cur=$(cat /etc/airtime-version 2>/dev/null || echo dev)
 echo "current: $cur  latest: $latest"
-wget -qO /tmp/airtime-overlay.tar.gz \
-  "https://github.com/DotCorr/airtime-os/releases/download/$latest/airtimeos-overlay.tar.gz"
-tar -xzf /tmp/airtime-overlay.tar.gz -C /
+
+step 20 "Downloading $latest…"
+if ! wget -qO /tmp/airtime-overlay.tar.gz --timeout=60 \
+     "https://github.com/DotCorr/airtime-os/releases/download/$latest/airtimeos-overlay.tar.gz"; then
+  rm -f /tmp/airtime-overlay.tar.gz
+  fail "The download didn't finish. Check the network and try again."
+fi
+
+# Verify before unpacking over a working system: a truncated download that is
+# extracted anyway leaves a screen that cannot boot, and it is on a wall.
+step 55 "Checking the download…"
+if ! tar -tzf /tmp/airtime-overlay.tar.gz >/dev/null 2>&1; then
+  rm -f /tmp/airtime-overlay.tar.gz
+  fail "The downloaded update was incomplete. Nothing was changed. Try again."
+fi
+
+step 70 "Applying the update…"
+if ! tar -xzf /tmp/airtime-overlay.tar.gz -C /; then
+  fail "Couldn't apply the update. Nothing else was changed."
+fi
 rm -f /tmp/airtime-overlay.tar.gz
-apk upgrade --available >/dev/null 2>&1 || true
-# restart the kiosk session with the new bits (agetty respawns it)
-pkill -f airtime-kiosk 2>/dev/null || true
-pkill cage 2>/dev/null || true
+echo "$latest" > /etc/airtime-version 2>/dev/null || true
+
+step 85 "Installing security patches…"
+# Debian's own patches, the same narrow security-suite-only set the nightly
+# sweep applies. Never fatal: a mirror having a bad day must not fail an update
+# that has already succeeded.
+/usr/local/bin/airtime-security-update >/dev/null 2>&1 || true
+
+step 95 "Restarting the screen — this takes a few seconds…"
+sleep 2
 echo "updated to $(cat /etc/airtime-release 2>/dev/null || echo "$latest")"
+echo AIRTIME_UPDATE_DONE
+
+# Last: ending the browser makes the session's respawn loop start it again on
+# the new code. Nothing above this line depends on the process surviving it.
+( sleep 1; pkill -f "chromium.*--kiosk" 2>/dev/null ) &
+exit 0

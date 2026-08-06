@@ -1,0 +1,17 @@
+#!/bin/sh
+echo "Content-Type: application/json"
+echo "Access-Control-Allow-Origin: *"
+echo "Access-Control-Allow-Private-Network: true"
+echo "Access-Control-Allow-Headers: *"
+echo
+log=/tmp/airtime-update.log
+# the last STEP line is the current stage; the percentage drives the bar
+last=$(grep '^STEP ' "$log" 2>/dev/null | tail -1)
+pct=$(printf '%s' "$last" | awk '{print $2}')
+msg=$(printf '%s' "$last" | cut -d' ' -f3- | tr '"' "'")
+running=false
+[ -f /tmp/airtime-update.pid ] && kill -0 "$(cat /tmp/airtime-update.pid)" 2>/dev/null && running=true
+done=false; grep -q AIRTIME_UPDATE_DONE "$log" 2>/dev/null && done=true
+failed=false; grep -q AIRTIME_UPDATE_FAILED "$log" 2>/dev/null && failed=true
+printf '{"running":%s,"done":%s,"failed":%s,"percent":%s,"message":"%s"}' \
+  "$running" "$done" "$failed" "${pct:-0}" "$msg"

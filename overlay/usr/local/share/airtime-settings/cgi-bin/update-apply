@@ -4,9 +4,10 @@ echo "Access-Control-Allow-Origin: *"
 echo "Access-Control-Allow-Private-Network: true"
 echo "Access-Control-Allow-Headers: *"
 echo
-if grep -q ' / tmpfs ' /proc/mounts; then
+if [ "$(/usr/local/bin/airtime-mode 2>/dev/null || echo disk)" = live ]; then
   echo '{"ok":false,"error":"live media cannot update itself — install to disk first, or download the newest image"}'
   exit 0
 fi
+rm -f /tmp/airtime-update.log /tmp/airtime-update.pid
 nohup /usr/local/bin/airtime-update > /tmp/airtime-update.log 2>&1 &
 echo '{"ok":true}'

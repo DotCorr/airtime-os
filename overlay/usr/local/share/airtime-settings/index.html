@@ -285,13 +285,13 @@ async function refreshCurrent() {
     if (broken) {
       // wifiReason already carries its own advice; only the generic fallbacks
       // need the "what to do instead" sentence appended.
-      const advice = " Plug in an Ethernet cable, or a USB Wi-Fi adapter \u2014 both work immediately.";
+      const advice = " " + t("plugEthernet");
       const why = st.wifiReason ||
         ((st.fwMissing
-          ? "This machine's Wi-Fi needs firmware that cannot be shipped with Linux (" + st.fwMissing + ")."
-          : "No usable Wi-Fi adapter was found on this machine.") + advice);
-      ad.innerHTML = "<b>Wi-Fi is unavailable on this machine.</b> " + why +
-        "<span class=\"chip\">" + (st.wifiDev || "unknown adapter") + " \u00b7 driver " + (st.wifiDrv || "none") + "</span>";
+          ? t("fwCannotShip", { fw: st.fwMissing })
+          : t("noAdapter")) + advice);
+      ad.innerHTML = "<b>" + t("wifiUnavailable") + "</b> " + why +
+        "<span class=\"chip\">" + (st.wifiDev || t("unknownAdapter")) + " \u00b7 " + t("driver") + " " + (st.wifiDrv || "none") + "</span>";
       ad.classList.remove("hide");
     } else {
       ad.classList.add("hide");
@@ -328,10 +328,12 @@ function applyDisplay(d) {
   document.getElementById("bright-val").textContent = d.brightness + "%";
   document.getElementById("rot-sel").value = d.rotation || "normal";
   // Most desk monitors expose no backlight over HDMI. Say so rather than
-  // leaving a slider that appears to work and changes nothing.
+  // leaving a slider that appears to work and changes nothing. Rewriting the
+  // data-i18n key keeps this survivable across a language re-apply.
   if (d.hardware === false) {
-    document.getElementById("bright-note").textContent =
-      "This screen has no software brightness control — use the buttons on the monitor.";
+    const note = document.getElementById("bright-note");
+    note.dataset.i18n = "noBacklight";
+    note.textContent = t("noBacklight");
     document.getElementById("bright").disabled = true;
   }
 }
@@ -341,13 +343,13 @@ async function loadDisplay() {
 loadDisplay();
 
 async function rebootNow() {
-  document.getElementById("status").textContent = "Restarting…";
+  document.getElementById("status").textContent = t("restarting");
   await fetch("/cgi-bin/power", { method: "POST", body: "reboot" });
 }
 async function forget() {
   if (!currentSsid) return;
   await fetch("/cgi-bin/forget", { method: "POST", body: "ssid=" + encodeURIComponent(currentSsid) });
-  document.getElementById("status").textContent = "Network forgotten.";
+  document.getElementById("status").textContent = t("networkForgotten");
   refreshCurrent();
 }
 let sysMode = "disk";
@@ -356,15 +358,15 @@ async function sysinfo() {
     const st = await (await fetch("/cgi-bin/status")).json();
     sysMode = st.mode;
     document.getElementById("sys-ver").textContent = st.version;
-    document.getElementById("sys-mode").textContent = st.mode === "live" ? "USB / live media" : "internal disk";
+    document.getElementById("sys-mode").textContent = st.mode === "live" ? t("usbLive") : t("internalDisk");
     document.getElementById("disp-info").textContent =
-      (st.active || st.fb || "?") + " · panel " + (st.native || "?") + " · driver " + (st.gpu || "?");
+      (st.active || st.fb || "?") + " · " + t("panel") + " " + (st.native || "?") + " · " + t("driver") + " " + (st.gpu || "?");
     document.getElementById("install-row").classList.toggle("hide", st.mode !== "live");
-    document.getElementById("upd-auto").textContent = st.autoupdate === "on" ? "On" : "Off";
+    document.getElementById("upd-auto").textContent = st.autoupdate === "on" ? t("on") : t("off");
     document.getElementById("sec-last").textContent =
-      st.secOk === "no" ? "not configured — report this"
+      st.secOk === "no" ? t("notConfigured")
         : st.secLast && st.secLast !== "never" ? st.secLast.replace("T", " ")
-        : (st.mode === "live" ? "not while running from USB" : "not yet");
+        : (st.mode === "live" ? t("notWhileUsb") : t("notYet"));
     document.getElementById("sec-reboot-row").classList.toggle("hide", st.secReboot !== "yes");
     var sel = document.getElementById("scale-sel");
     if (sel && st.scale) { sel.value = st.scale; if (st.scale !== "auto") document.documentElement.style.zoom = st.scale; }
@@ -388,7 +390,11 @@ async function showDisks() {
     b.className = "btn2 danger";
     b.style.cssText = "display:block;width:100%;margin-top:8px;text-align:left";
     b.textContent =
-      `Erase ${d.model || "disk"} — ${(d.size / 1e9).toFixed(0)} GB${d.removable ? ", removable" : ""} (${d.dev}) and install AirtimeOS`;
+      t("eraseAndInstall", {
+        disk: (d.model || t("diskWord")) + " (" + d.dev + ")",
+        size: (d.size / 1e9).toFixed(0),
+        removable: d.removable ? t("removable") : "",
+      });
     b.onclick = () => install(d.dev, b);
     el.appendChild(b);
   });
@@ -396,14 +402,16 @@ async function showDisks() {
   if (self) {
     const note = document.createElement("p");
     note.style.cssText = "margin-top:10px;color:rgba(255,255,255,0.4);font-size:13px";
-    note.textContent =
-      `Running from ${self.model || self.dev} (${(self.size / 1e9).toFixed(0)} GB) — that one is left alone.`;
+    note.textContent = t("runningFromDisk", {
+      disk: self.model || self.dev,
+      size: (self.size / 1e9).toFixed(0),
+    });
     el.appendChild(note);
   }
   if (!targets.length) {
     const none = document.createElement("p");
     none.style.cssText = "margin-top:10px;color:rgba(255,255,255,0.55);font-size:14px";
-    none.textContent = "No other disk found to install onto — this machine has only the drive it booted from.";
+    none.textContent = t("noOtherDisk");
     el.appendChild(none);
   }
 }
@@ -412,14 +420,14 @@ async function install(dev, btn) {
   // no browser modals in kiosk — click once to arm, again to confirm
   if (confirmDev !== dev) {
     confirmDev = dev;
-    btn.textContent = `Click again to ERASE ${dev} and install — cannot be undone`;
+    btn.textContent = t("clickAgainErase", { dev });
     return;
   }
   const r = await (await fetch("/cgi-bin/install", { method: "POST", body: JSON.stringify({ disk: dev }) })).json();
   if (!r.ok) { document.getElementById("install-progress").textContent = r.error; return; }
   document.getElementById("disk-list").innerHTML = "";
   document.getElementById("install-bar").classList.remove("hide");
-  document.getElementById("install-progress").textContent = "Installing…";
+  document.getElementById("install-progress").textContent = t("installing");
   // Copying the filesystem takes minutes on a slow external disk. A bar that
   // paces for that long looks stuck, so the installer reports real stages and
   // this draws them.
@@ -434,19 +442,19 @@ async function install(dev, btn) {
     }
     if (st.done) {
       bar.classList.add("hide");
-      document.getElementById("install-progress").textContent = "Installed. Remove the USB stick and restart this computer.";
+      document.getElementById("install-progress").textContent = t("installed");
       document.getElementById("install-log").textContent = "";
     } else if (st.failed || !st.running) {
       bar.classList.add("hide");
       document.getElementById("install-progress").textContent =
-        st.message ? "Install failed — " + st.message : "Install failed — details below.";
+        st.message ? t("installFailed", { msg: st.message }) : t("installFailedDetails");
     }
     if (st.done || st.failed || !st.running) clearInterval(poll);
   }, 2000);
 }
 async function toggleAuto() {
   const r = await (await fetch("/cgi-bin/update-toggle", { method: "POST" })).json();
-  document.getElementById("upd-auto").textContent = r.autoupdate === "on" ? "On" : "Off";
+  document.getElementById("upd-auto").textContent = r.autoupdate === "on" ? t("on") : t("off");
 }
 async function applyUpdate() {
   const r = await (await fetch("/cgi-bin/update-apply", { method: "POST" })).json();
@@ -458,7 +466,7 @@ async function applyUpdate() {
   const barFill = bar.firstElementChild;
   bar.classList.remove("hide");
   const status = document.getElementById("upd-status");
-  status.textContent = "Starting…";
+  status.textContent = t("starting");
   const poll = setInterval(async () => {
     try {
       const s = await (await fetch("/cgi-bin/update-status")).json();
@@ -472,7 +480,7 @@ async function applyUpdate() {
       if (s.done) {
         clearInterval(poll);
         barFill.style.width = "100%";
-        status.textContent = "Updated. The screen is restarting — it comes back on its own in a few seconds.";
+        status.textContent = t("updated");
       }
     } catch {
       // the session restarting takes this page with it; that is the success case

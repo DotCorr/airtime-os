@@ -38,6 +38,25 @@ allocation, X startup, permissions, seat management and waiting for Plymouth to
 release the display, and doing any of that yourself works on the machine in
 front of you and fails on the next one.
 
+## Language
+
+The screen ships in 14 languages (English, Nederlands, Deutsch, Français,
+Español, Italiano, Português, Polski, Türkçe, العربية, 中文, हिन्दी, 日本語,
+Русский). Resolution order:
+
+1. a language picked in the settings panel (stored in `/var/lib/airtime/lang`);
+2. otherwise geo-IP: the country is looked up in the background with a hard
+   3-second timeout and mapped to a language, and the answer is cached in
+   `/var/lib/airtime/lang.detected` — a screen that boots offline uses the
+   last cached answer and never waits on the network;
+3. otherwise English.
+
+`airtime-lang` is the one place this is decided. The session launches Chromium
+with `--lang`/`--accept-lang`, so the Airtime web app inside (which detects via
+`navigator.languages`) inherits the language with no changes of its own; the
+settings panel translates itself from the same answer. Changing the language
+in the panel restarts the kiosk session for a moment, the same way updates do.
+
 ## Wi-Fi
 
 Linux ships three separate drivers for Broadcom silicon and no single one of

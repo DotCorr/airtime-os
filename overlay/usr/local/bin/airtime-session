@@ -20,6 +20,28 @@ xrandr > /tmp/airtime-display.txt 2>&1
 unclutter -idle 1 -root >/dev/null 2>&1 &
 matchbox-window-manager -use_titlebar no -use_cursor no >/dev/null 2>&1 &
 
+# Wait for the window manager to actually be managing before starting the
+# browser. This was a race: both were launched together, and when Chromium
+# mapped its window first nothing ever assigned it input focus. The screen looks
+# completely normal — the ad plays, the QR shows — and the keyboard does
+# nothing, on some boots and not others depending on which won.
+i=0
+while [ "$i" -lt 40 ]; do
+  xprop -root _NET_SUPPORTING_WM_CHECK 2>/dev/null | grep -q "window id" && break
+  i=$((i + 1))
+  sleep 0.2
+done
+
+# A key held or mashed while the machine was still booting can leave a modifier
+# latched in X. Everything typed afterwards is then read as Ctrl- or Alt-
+# something and appears to do nothing at all, which is indistinguishable from a
+# dead keyboard. Release them before handing the session over.
+for m in ctrl alt shift super; do xdotool keyup "$m" 2>/dev/null || true; done
+
+# What the kernel thinks is attached, for when a keyboard really is missing
+# rather than unfocused.
+{ xinput list 2>/dev/null; echo "--- /proc/bus/input/devices ---"; cat /proc/bus/input/devices 2>/dev/null; }   > /tmp/airtime-input.txt 2>&1
+
 flags="--kiosk --no-first-run --noerrdialogs --disable-infobars \
   --disable-session-crashed-bubble --autoplay-policy=no-user-gesture-required \
   --disable-pinch --overscroll-history-navigation=0 \

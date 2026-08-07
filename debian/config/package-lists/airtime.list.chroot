@@ -19,6 +19,8 @@ plymouth
 plymouth-themes
 fonts-liberation2
 fonts-dejavu-core
+fonts-noto-core
+fonts-noto-cjk
 busybox
 curl
 ca-certificates
@@ -54,3 +56,6 @@ e2fsprogs
 util-linux
 grub-common
 grub2-common
+x11-utils
+xdotool
+xinput

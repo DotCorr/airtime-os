@@ -2,23 +2,39 @@
 rfkill unblock wifi >/dev/null 2>&1
 nmcli radio wifi on >/dev/null 2>&1
 echo "Content-Type: application/json"; echo
-# nmcli lists one row per radio, not per network: a router broadcasting the same
-# name on 2.4 and 5 GHz appears twice, and a venue with mesh points appears once
-# per node. The owner sees their own network listed three times and cannot tell
-# which one to tap. Collapse by name and keep the strongest sighting — that is
-# the one NetworkManager will associate with anyway.
-nmcli -t -f SSID,SIGNAL,SECURITY dev wifi list --rescan auto 2>/dev/null | awk -F: '
-  $1 != "" {
-    ssid = $1
-    if (!(ssid in best) || $2 + 0 > best[ssid]) { best[ssid] = $2 + 0; sec[ssid] = $3 }
+# SSID goes LAST on purpose. nmcli's terse output separates fields with colons
+# and escapes any colon inside a value as "\:", so splitting on every colon
+# mangles a network called "Cafe: Free" — it displayed wrong here and then
+# failed to match on connect, which reached the owner as "the Wi-Fi network
+# could not be found" while that very network sat in the list. Signal and
+# security never contain colons, so everything past the second one is the name,
+# and only the name needs unescaping.
+#
+# nmcli also lists one row per radio, so a router on 2.4 and 5 GHz appears
+# twice and a mesh appears once per node. Collapse by name, keeping the
+# strongest sighting — the one NetworkManager would associate with anyway.
+nmcli -t -f SIGNAL,SECURITY,SSID dev wifi list --rescan auto 2>/dev/null | awk '
+  {
+    p = index($0, ":");            if (!p) next
+    sig = substr($0, 1, p - 1)
+    rest = substr($0, p + 1)
+    q = index(rest, ":");          if (!q) next
+    sec = substr(rest, 1, q - 1)
+    ssid = substr(rest, q + 1)
+    gsub(/\\:/, ":", ssid)
+    gsub(/\\\\/, "\\", ssid)
+    if (ssid == "") next
+    if (!(ssid in best) || sig + 0 > best[ssid]) { best[ssid] = sig + 0; sec2[ssid] = sec }
     if (!(ssid in seen)) { order[++n] = ssid; seen[ssid] = 1 }
   }
   END {
     print "["
     for (i = 1; i <= n; i++) {
       s = order[i]
+      gsub(/\\/, "\\\\", s)
       gsub(/"/, "\\\"", s)
-      printf("%s{\"ssid\":\"%s\",\"signal\":%d,\"security\":\"%s\"}", (i > 1 ? "," : ""), s, best[order[i]], sec[order[i]])
+      printf("%s{\"ssid\":\"%s\",\"signal\":%d,\"security\":\"%s\"}",
+             (i > 1 ? "," : ""), s, best[order[i]], sec2[order[i]])
     }
     print "]"
   }'

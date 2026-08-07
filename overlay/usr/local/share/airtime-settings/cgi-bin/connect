@@ -30,18 +30,26 @@ nmcli radio wifi on >/dev/null 2>&1
 # NetworkManager answers "network could not be found" from its *cached* scan.
 # Force fresh scans until the SSID appears (routers on 5 GHz and busy bands
 # routinely need more than one sweep).
+# nmcli escapes a colon inside a network name as "\:". The old matcher deleted
+# that colon rather than unescaping it, so "Cafe: Free" was compared as
+# "Cafe Free" and never matched — reported to the owner as "the Wi-Fi network
+# could not be found" with the network plainly visible in the list.
+list_ssids() {
+  nmcli -t -f SSID dev wifi list 2>/dev/null | sed 's/\\:/:/g; s/\\\\/\\/g'
+}
+
 seen=no
 i=0
 while [ "$i" -lt 4 ]; do
   nmcli device wifi rescan >/dev/null 2>&1
   sleep 3
-  if nmcli -t -f SSID device wifi list 2>/dev/null | sed 's/\\://g' | grep -qxF "$ssid"; then
+  if list_ssids | grep -qxF "$ssid"; then
     seen=yes
     break
   fi
   i=$((i + 1))
 done
-visible=$(nmcli -t -f SSID device wifi list 2>/dev/null | grep -c .)
+visible=$(list_ssids | grep -c .)
 
 # not in any scan → it is either hidden or out of range; try hidden explicitly
 hf=""
@@ -74,7 +82,24 @@ try_hard() {
   nmcli connection delete id "$ssid" >/dev/null 2>&1
   nmcli connection add type wifi con-name "$ssid" ssid "$ssid" \
     wifi-sec.key-mgmt wpa-psk wifi-sec.psk "$psk" \
-    wifi-sec.pmf "$1" 802-11-wireless.cloned-mac-address permanent $hp >/dev/null 2>&1
+    wifi-sec.pmf "$1" 802-11-wireless.cloned-mac-address permanent \
+    802-11-wireless.powersave 2 ipv4.dhcp-timeout 45 $hp >/dev/null 2>&1
+  nmcli --wait 45 connection up id "$ssid" 2>&1
+}
+
+# "the base network connection was interrupted" means the link came up and then
+# died mid-handshake. On a laptop the usual causes are the radio's power saving
+# cutting the association, and band steering handing us a 5 GHz or DFS channel
+# the card cannot hold. Pinning the band and disabling power saving addresses
+# both, and is worth trying before telling anyone their password is wrong.
+try_band() {
+  hp=""
+  [ -n "$hf" ] && hp="802-11-wireless.hidden yes"
+  nmcli connection delete id "$ssid" >/dev/null 2>&1
+  nmcli connection add type wifi con-name "$ssid" ssid "$ssid" \
+    wifi-sec.key-mgmt wpa-psk wifi-sec.psk "$psk" \
+    802-11-wireless.band "$1" 802-11-wireless.powersave 2 \
+    802-11-wireless.cloned-mac-address permanent ipv4.dhcp-timeout 45 $hp >/dev/null 2>&1
   nmcli --wait 45 connection up id "$ssid" 2>&1
 }
 
@@ -84,6 +109,10 @@ if ! echo "$out" | grep -q successfully && [ -n "$psk" ]; then
   echo "$out" | grep -q successfully || out=$(try_keymgmt sae)
   echo "$out" | grep -q successfully || out=$(try_hard 1)   # PMF disabled
   echo "$out" | grep -q successfully || out=$(try_hard 3)   # PMF required
+  # 2.4 GHz last: slower, but it reaches further and survives interference that
+  # kills a 5 GHz association outright.
+  echo "$out" | grep -q successfully || out=$(try_band a)
+  echo "$out" | grep -q successfully || out=$(try_band bg)
 fi
 
 if echo "$out" | grep -q successfully; then
@@ -107,6 +136,8 @@ case "$low" in
       fi ;;
   *"secrets were required"*|*"invalid password"*|*"802-11-wireless-security"*|*"key management"*)
       hint="Wrong Wi-Fi password." ;;
+  *"interrupted"*|*"deactivated"*|*"disconnected"*)
+      hint="The screen reached that network but the connection dropped during setup. This is usually interference or distance, not the password — move the screen closer to the router and try again." ;;
   *"timeout"*|*"timed out"*|*"took too long"*)
       hint="The router did not answer in time. Try again, or move the screen closer." ;;
   *"blocked"*|*"rfkill"*)
